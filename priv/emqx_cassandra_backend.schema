@@ -1,0 +1,29 @@
+{mapping, "cassandra_backend.host", "emqx_cassandra_backend.host", [
+  {datatype, string},
+  {default, "127.0.0.1"}
+]}.
+
+{mapping, "cassandra_backend.port", "emqx_cassandra_backend.port", [
+  {datatype, integer},
+  {default, 9042}
+]}.
+
+{mapping, "cassandra_backend.keyspace", "emqx_cassandra_backend.keyspace", [
+  {datatype, string},
+  {default, "smartpot"}
+]}.
+
+{mapping, "cassandra_backend.db", "emqx_cassandra_backend.db", [
+  {datatype, string},
+  {default, "msgs"}
+]}.
+
+{mapping, "cassandra_backend.username", "emqx_cassandra_backend.username", [
+  {datatype, string},
+  {default, ""}
+]}.
+
+{mapping, "cassandra_backend.password", "emqx_cassandra_backend.password", [
+  {datatype, string},
+  {default, ""}
+]}.
