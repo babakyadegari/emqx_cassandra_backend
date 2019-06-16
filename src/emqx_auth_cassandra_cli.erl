@@ -19,7 +19,7 @@
 -include("emqx_cassandra_backend.hrl").
 
 -export([parse_query/1]).
--export([query/3]).
+-export([query/3, replvar/3]).
 
 %%--------------------------------------------------------------------
 %% Avoid SQL Injection: Parse SQL to Parameter Query.
@@ -51,6 +51,7 @@ replvar(Params, Credentials) ->
 replvar([], _Credentials, Acc) ->
     lists:reverse(Acc);
 replvar(["'%u'" | Params], Credentials = #{client_id := ClientId}, Acc) ->
+    %io:format("~p ~n", [ClientId]),
     replvar(Params, Credentials, [uuid:to_binary(binary_to_list(ClientId)) | Acc]);
 replvar(["'%c'" | Params], Credentials = #{client_id := ClientId}, Acc) ->
     replvar(Params, Credentials, [ClientId | Acc]);

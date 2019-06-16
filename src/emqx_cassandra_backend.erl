@@ -16,8 +16,6 @@
 
 -include_lib("emqx/include/emqx.hrl").
 
--include_lib("marina/include/marina.hrl").
-
 -define(APP, emqx_cassandra_backend).
 
 -export([load/0, unload/0]).
@@ -33,7 +31,6 @@
 -define(LOG(Level, Format, Args), emqx_logger:Level("cassandra_backend: " ++ Format, Args)).
 
 load() ->
-    % ?LOG(debug, "~s ~n", [Env]),
     %emqx:hook('client.connected', fun ?MODULE:on_client_connected/4, [Env]),
     %emqx:hook('client.disconnected', fun ?MODULE:on_client_disconnected/3, [Env]),
     %emqx:hook('client.subscribe', fun ?MODULE:on_client_subscribe/3, [Env]),
@@ -43,8 +40,6 @@ load() ->
     %emqx:hook('session.subscribed', fun ?MODULE:on_session_subscribed/4, [Env]),
     %emqx:hook('session.unsubscribed', fun ?MODULE:on_session_unsubscribed/4, [Env]),
     %emqx:hook('session.terminated', fun ?MODULE:on_session_terminated/3, [Env]),
-    %marina:query(<<"INSERT INTO test.msg values(0, '12', 0, '34');">>, #{timeout => 1000}),
-    io:format("hooking message.publish ~n", []),
     emqx:hook('message.publish', fun ?MODULE:on_message_publish/1),
     %emqx:hook('message.delivered', fun ?MODULE:on_message_delivered/3, [Env]),
     %emqx:hook('message.acked', fun ?MODULE:on_message_acked/3, [Env]),
@@ -60,11 +55,13 @@ load() ->
 on_message_publish(Msg = #message{topic = <<"$SYS/", _/binary>>}) ->
     {ok, Msg};
 on_message_publish(Msg) ->
-    %marina:query(<<"INSERT INTO test.msg values('"++#Msg.id++"',"++#Msg.payload++"',"++#Msg.qos++",'"++#Msg.topic++"');">>, #{timeout => 1000}).
-    io:format("~p ~n", [Msg]),
-    ?LOG(debug, "on_message_publish~n", [Msg]),
-    {ok, Msg}.
-
+    case cassandra_cli:save_msg(Msg) of
+        ok -> {ok, Msg};
+        {error, Reason} -> 
+            % should pass along the message
+            io:format("Error saving message: ~p ~n", [Reason]),
+            {ok, Msg}
+    end.
 
 
 %%--------------------------------------------------------------------

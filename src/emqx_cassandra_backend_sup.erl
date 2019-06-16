@@ -15,5 +15,15 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
+
 init([]) ->
     {ok, {{one_for_all, 0, 1}, []}}.
+    
+% init([]) ->
+%     {ok, {{one_for_all, 0, 1}, 
+%     	[{serv,
+% 			{marina_sup, start_link, []},
+% 			permanent,
+% 			5000, % Shutdown time
+% 			supervisor,
+% 				[]}]}}.

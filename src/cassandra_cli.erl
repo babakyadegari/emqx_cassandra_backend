@@ -13,7 +13,7 @@ week_of_year({Year, Week}) ->
 
 %% queries for auth and acl modules
 query(Query, QOpts) ->
-    ?LOG(info, " SENDING QUERY: ~p ~p ~n", [Query, QOpts]),
+    ?LOG(info, "DB QUERY: ~p ~p ~n", [Query, QOpts]),
     marina:query(Query, QOpts).
 
 
@@ -21,12 +21,17 @@ save_msg(Msg) ->
 	[DevId, Topic] = string:split(binary_to_list(Msg#message.topic), "/"),
 	case uuid:is_valid(DevId) of
 		true ->
-    		case marina:query(?INSERTQSTR, #{values => 
+            <<MID:128>> = Msg#message.id,
+    		case 
+                marina:query(?INSERTQSTR, #{values => 
     			[uuid:to_binary(binary_to_list(Msg#message.from)), week_of_year(calendar:iso_week_number()), 
-    			uuid:timeuuid(Msg#message.timestamp), Msg#message.flags, Msg#message.headers, Msg#message.id, 
+    			uuid:timeuuid(Msg#message.timestamp), <<"Msg#message.flags">>, <<"Msg#message.headers">>, list_to_binary(lists:flatten(io_lib:format("~32.16.0b", [MID]))),
     			Msg#message.payload, binary:encode_unsigned(Msg#message.qos), list_to_binary(Topic)], timeout => 1000}) of
     		{ok, _} -> ok;
-    		{error, Reason} -> {error, Reason}
+    		{error, Reason} -> 
+                {error, Reason}
+                %erlang:display(erlang:get_stacktrace())
+
     	end;
     	false -> ignore
     end.

@@ -2,9 +2,10 @@ PROJECT = emqx_cassandra_backend
 PROJECT_DESCRIPTION = EMQ X cassandra backend
 PROJECT_VERSION = 0.1.0
 
-DEPS = clique marina
+DEPS = clique marina emqx_passwd
 dep_clique = git-emqx https://github.com/emqx/clique v0.3.11
 dep_marina = git https://github.com/babakyadegari/marina.git master
+dep_emqx_passwd = git-emqx https://github.com/emqx/emqx-passwd v1.0
 
 BUILD_DEPS = emqx
 dep_emqx = git-emqx https://github.com/emqx/emqx master

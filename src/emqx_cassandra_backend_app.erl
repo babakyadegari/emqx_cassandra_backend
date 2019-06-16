@@ -14,21 +14,49 @@
 
 -module(emqx_cassandra_backend_app).
 
+-include("emqx_cassandra_backend.hrl").
+
 -behaviour(application).
 
--export([start/2, stop/1]).
+-export([start/2, stop/1, prep_stop/1]).
 
 start(_Start, _State) ->
     {ok, Sup} = emqx_cassandra_backend_sup:start_link(),
-    emqx_cassandra_backend_cfg:register(),
-    %emqx_logger:error("cassandra_backend: ~p ~n", [application:get_all_env()]),
-    %io:format("~p ~n", application:get_all_env()),
-    %cassandra_client:load(application:get_all_env()),
     emqx_cassandra_backend:load(),
+    emqx_cassandra_backend_cfg:register(),
+    marina_sup:start_link(),
+    if_enabled(auth_query, fun reg_authmod/1),
+    if_enabled(acl_query,  fun reg_aclmod/1),
+    %io:format("~p ~n", application:get_all_env()),
+    %{ok, Sup2} = marina_sup:start_link(),
     {ok, Sup}.
 
+reg_authmod(AuthQuery) ->
+	%io:format("register cassandra_auth ~n"),
+    SuperQuery = emqx_auth_cassandra_cli:parse_query(application:get_env(?APP, super_query, undefined)),
+    {ok, HashType} = application:get_env(?APP, password_hash),
+    AuthEnv = {AuthQuery, SuperQuery, HashType},
+    emqx_access_control:register_mod(auth, emqx_auth_cassandra, AuthEnv).
+
+reg_aclmod(AclQuery) ->
+    emqx_access_control:register_mod(acl, emqx_acl_cassandra, AclQuery).
+
 stop(_State) ->
+    prep_stop(_State),
     emqx_cassandra_backend:unload(),
     emqx_cassandra_backend_cfg:unregister(),
     ok.
 
+if_enabled(Cfg, Fun) ->
+	%Ss = application:get_env(?APP, Cfg),
+	%io:format("this is ~p ~p ~p ~n", [?APP, Cfg, Ss]),
+    case application:get_env(?APP, Cfg) of
+        {ok, Query} -> Fun(emqx_auth_cassandra_cli:parse_query(Query));
+        undefined   -> ok
+    end.
+
+prep_stop(State) ->
+    emqx_access_control:unregister_mod(auth, emqx_auth_cassandra),
+    emqx_access_control:unregister_mod(acl, emqx_acl_cassandra),
+    emqx_auth_cassandra_cfg:unregister(),
+    State.

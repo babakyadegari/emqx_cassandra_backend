@@ -47,10 +47,9 @@ unregister_config() ->
     clique:unregister_config_whitelist(Keys, ?APP).
 
 keys() ->
-    ["cassandra_backend.host",
+    ["cassandra_backend.bootstrap_ips",
     "cassandra_backend.port",
     "cassandra_backend.username",
     "cassandra_backend.password",
-    "cassandra_backend.keyspace",
-    "cassandra_backend.db"
+    "cassandra_backend.keyspace"
     ].
