@@ -1,0 +1,11 @@
+{application,emqx_cassandra_backend,
+             [{description,"EMQ X Cassandra backend for authentication and logging"},
+              {vsn,"git"},
+              {modules,[]},
+              {registered,[]},
+              {applications,[kernel,stdlib,clique]},
+              {mod,{emqx_cassandra_backend_app,[]}},
+              {env,[]},
+              {licenses,["Apache-2.0"]},
+              {links,["Github",
+                      "https://github.com/babakyadegari/emqx-cassandra_backend"]}]}.
