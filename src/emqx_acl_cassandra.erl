@@ -1,16 +1,3 @@
-%% Copyright (c) 2018 EMQ Technologies Co., Ltd. All Rights Reserved.
-%%
-%% Licensed under the Apache License, Version 2.0 (the "License");
-%% you may not use this file except in compliance with the License.
-%% You may obtain a copy of the License at
-%%
-%%     http://www.apache.org/licenses/LICENSE-2.0
-%%
-%% Unless required by applicable law or agreed to in writing, software
-%% distributed under the License is distributed on an "AS IS" BASIS,
-%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-%% See the License for the specific language governing permissions and
-%% limitations under the License.
 
 -module(emqx_acl_cassandra).
 
@@ -21,160 +8,91 @@
 -include_lib("common_test/include/ct.hrl").
 
 %% ACL Callbacks
--export([init/1, check_acl/2, reload_acl/1, description/0]).
+-export([init/1, check_acl/5, register_metrics/0]).
 
 -record(state, {acl_query}).
 
 -define(CPHONETYPE, <<1>>).
+
+
+-define(ACL_METRICS,
+        ['acl.cassandra.allow',
+         'acl.cassandra.deny',
+         'acl.cassandra.ignore'
+        ]).
+
+-spec(register_metrics() -> ok).
+register_metrics() ->
+    lists:foreach(fun emqx_metrics:new/1, ?ACL_METRICS).
 
 init(AclQuery) ->
     {ok, #state{acl_query = AclQuery}}.
 
 
 is_a_valid_uuid(Bin) when is_binary(Bin) ->
-    is_a_valid_uuid(binary_to_list(Bin));
-
-is_a_valid_uuid(Str) when is_list(Str) ->
-    case string:length(Str) of
-        36 -> uuid:is_valid(Str);
-        _  -> false
+    % is_a_valid_uuid(binary_to_list(Bin));
+    case erlcass_uuid:get_version(Bin) of
+      {error, _} -> false;
+      {ok,4}     -> true
     end.
 
+check_acl(ClientInfo, PubSub, Topic, NoMatchAction, State) ->
+    case do_check_acl(ClientInfo, PubSub, Topic, NoMatchAction, State) of
+        ok -> emqx_metrics:inc('acl.cassandra.ignore'), ok;
+        {stop, allow} -> emqx_metrics:inc('acl.cassandra.allow'), {stop, allow};
+        {stop, deny} -> emqx_metrics:inc('acl.cassandra.deny'), {stop, deny}
+    end.
 
-check_acl({#{username := <<$$, _/binary>>}, _PubSub, _Topic}, _State) ->
-    ignore;
-
-%check_acl({#{client_id := <<CLid>>}, _PubSub, _Topic}, _State) ->
-%    check_acl({#{client_id := <<CLid>>}, _PubSub, _Topic}, _State);
-
-check_acl({Credentials, PubSub, Topic}, #state{acl_query = {AclSql, AclParams}}) ->
-    %ct:pal("Creds: ~p ~nPubSub: ~p~nTopic ~p ~n", [Credentials, PubSub, Topic]),
+do_check_acl(ClientInfo, PubSub, Topic, _NoMatchAction, #{acl_query := {AclSql, AclParams}}) ->
     %% So the logic:
-    %%  1. phone devices can pubsub to subtopics of devices they own
-    %%  2. non-phone devices can only pubsub to sub-topics of their own
-    [TopLBin, _] = string:split(Topic, "/"),
-    TopL = binary_to_list(TopLBin),
-    case is_a_valid_uuid(TopL) of
-         true ->
-            TopLevel = uuid:to_binary(TopL),
-            case check_self(Credentials, TopLevel) of
-                ok      -> allow;
-                nomatch -> 
-                    case emqx_auth_cassandra_cli:query(AclSql, AclParams, Credentials) of
-                        {ok, {result, {_, _, _, _}, 1, []}}                  -> ignore;
-                        {ok, {result, {_, _, _, _}, 1, [[_, _]]}}            -> ignore;
-                        {ok, {result, {_, _, _, _}, 1, [[_, ClientType, DeviceIDs]]}} ->
-                            case ClientType of
-                                ?CPHONETYPE ->
-                                    %% get all devices belonging to this user
-                                    case DeviceIDs of
-                                        null -> deny;
-                                        _ ->
-                                            <<_:32, DevUUIDs/binary>> = DeviceIDs,
-                                            case device_owned_by_phone(TopLevel, DevUUIDs) of
-                                                true -> allow;
-                                                _    -> deny
-                                            end
-                                    end;
-                                _ -> deny
-                            end;
-                        {error, Reason} ->
-                            logger:error("cassandra check_acl error: ~p~n", [Reason]),
-                            deny
-                    end
-            end;
-        %% allow subscription to general topics
-        _ -> allow
+    %%  0. topcis are generally of the form CliendID/topic to simplify ACL!
+    %%  1. webservice should be able to subscribe to anything
+    %%  2. devices can only pubsub to sub-topics of their own
+    case string:split(Topic, "/") of
+      [TopicRoot, Tail] -> ok;
+      [TopicRoot] -> ok
+    end,
+    {ok, WebSerivceId} = application:get_env(?APP, webservice_client_id),
+    ClientId = binary_to_list(maps:get(clientid, ClientInfo)),
+    case string:equal(WebSerivceId, ClientId) of
+      true -> ok;
+      false ->
+        % devices from here on
+        case is_a_valid_uuid(TopicRoot) of
+             %% check whether topic matches with client id
+             true -> case string:equal(binary_to_list(TopicRoot), ClientId) of
+               true -> {stop, allow};
+               false -> {stop, deny}
+             end;
+              %% for general topics, only allow subscription for devices
+             _-> case PubSub of
+               publish -> {stop, deny};
+               subscribe -> {stop, allow}
+             end
+        end
     end.
 
-check_self(Creds, Topic = <<CLid/binary>>) ->
-    check_self(Creds, uuid:to_string(CLid));
+% check_self(Creds, Topic = <<CLid/binary>>) ->
+%     check_self(Creds, uuid:to_string(CLid));
+%
+% check_self(Credentials=#{username := Username}, Topic) ->
+%     case string:equal(Username, Topic) of
+%         true  -> ok;
+%         false -> nomatch
+%     end.
 
-check_self(Credentials=#{username := Username}, Topic) ->
-    case string:equal(Username, Topic) of
-        true  -> ok;
-        false -> nomatch
-    end.
-
-is_phone_client(Credentials=#{username := Username}) ->
-    case string:split(Username, "phone") of
-        nomatch -> false;
-        _       -> true
-    end.
-
-device_owned_by_phone(_, <<>>) -> 
-    false;
-
-device_owned_by_phone(TopicUUID, DeviceIDs) ->
-    <<0,0,0,16, Duuid:128, Rest/binary>> = DeviceIDs,
-    case binary:encode_unsigned(Duuid) =:= TopicUUID of 
-        true  -> true;
-        false -> device_owned_by_phone(TopicUUID, Rest)
-    end.
-
-
-match(_Credentials, _Topic, []) ->
-    nomatch;
-
-match(Credentials, Topic, [Rule|Rules]) ->
-    case emqx_access_rule:match(Credentials, Topic, Rule) of
-        nomatch ->
-            match(Credentials, Topic, Rules);
-        {matched, AllowDeny} ->
-            {matched, AllowDeny}
-    end.
-
-filter(PubSub, Rules) ->
-    [Term || Term = {_, _, Access, _} <- Rules,
-             Access =:= PubSub orelse Access =:= pubsub].
-
-compile(Rows) ->
-    compile(Rows, []).
-compile([], Acc) ->
-    Acc;
-compile([[Allow, IpAddr, Username, ClientId, Access, Topic]|T], Acc) ->
-    Who  = who(IpAddr, Username, ClientId),
-    Term = {allow(Allow), Who, access(Access), [topic(Topic)]},
-    compile(T, [emqx_access_rule:compile(Term) | Acc]).
-
-who(_, <<"$all">>, _) ->
-    all;
-who(null, null, null) ->
-    throw(undefined_who);
-who(CIDR, Username, ClientId) ->
-    Cols = [{ipaddr, b2l(CIDR)}, {user, Username}, {client, ClientId}],
-    case [{C, V} || {C, V} <- Cols, not empty(V)] of
-        [Who] -> Who;
-        Conds -> {'and', Conds}
-    end.
-
-allow(1)  -> allow;
-allow(0)  -> deny;
-allow(<<"1">>)  -> allow;
-allow(<<"0">>)  -> deny.
-
-access(1) -> subscribe;
-access(2) -> publish;
-access(3) -> pubsub;
-access(<<"1">>) -> subscribe;
-access(<<"2">>) -> publish;
-access(<<"3">>) -> pubsub.
-
-topic(<<"eq ", Topic/binary>>) ->
-    {eq, Topic};
-topic(Topic) ->
-    Topic.
-
-reload_acl(_State) ->
-    ok.
-
-description() ->
-    "ACL with cassandra".
-
-b2l(null) -> null;
-b2l(B)    -> binary_to_list(B).
-
-empty(null) -> true;
-empty("")   -> true;
-empty(<<>>) -> true;
-empty(_)    -> false.
+% is_phone_client(Credentials=#{username := Username}) ->
+%     case string:split(Username, "phone") of
+%         nomatch -> false;
+%         _       -> true
+%     end.
+%
+% device_owned_by_phone(_, <<>>) ->
+%     false;
+%
+% device_owned_by_phone(TopicUUID, DeviceIDs) ->
+%     <<0,0,0,16, Duuid:128, Rest/binary>> = DeviceIDs,
+%     case binary:encode_unsigned(Duuid) =:= TopicUUID of
+%         true  -> true;
+%         false -> device_owned_by_phone(TopicUUID, Rest)
+%     end.

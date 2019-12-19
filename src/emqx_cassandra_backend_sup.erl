@@ -1,5 +1,8 @@
 -module(emqx_cassandra_backend_sup).
 
+
+-include("emqx_cassandra_backend.hrl").
+
 -export([
     start_link/0
 ]).
@@ -13,14 +16,14 @@
 -spec start_link() -> {ok, pid()}.
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+  supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 
 init([]) ->
     {ok, {{one_for_all, 0, 1}, []}}.
-    
+
 % init([]) ->
-%     {ok, {{one_for_all, 0, 1}, 
+%     {ok, {{one_for_all, 0, 1},
 %     	[{serv,
 % 			{marina_sup, start_link, []},
 % 			permanent,

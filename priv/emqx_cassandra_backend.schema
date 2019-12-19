@@ -1,4 +1,4 @@
-{mapping, "cassandra_backend.bootstrap_ips", "marina.bootstrap_ips", [
+{mapping, "cassandra_backend.bootstrap_ips", "erlcass.bootstrap_ips", [
   {datatype, string},
   {default, "127.0.0.1"}
 ]}.
@@ -24,6 +24,11 @@
 {mapping, "cassandra_backend.password", "emqx_cassandra_backend.password", [
   {datatype, string},
   {default, ""}
+]}.
+
+{mapping, "cassandra_backend.auth.webservice_client_id", "emqx_cassandra_backend.webservice_client_id", [
+  {datatype, string},
+  {default, "NO_ID"}
 ]}.
 
 {mapping, "cassandra_backend.auth_table", "emqx_cassandra_backend.auth_table", [
@@ -65,7 +70,28 @@
     end
 end}.
 
-{translation, "marina.bootstrap_ips", fun(Conf) ->
+{translation, "erlcass.bootstrap_ips", fun(Conf) ->
   Ips = cuttlefish:conf_get("cassandra_backend.bootstrap_ips", Conf),
   string:tokens(Ips, ",")
+end}.
+
+{translation, "erlcass", fun(Conf) ->
+    [
+    {log_level, 3},
+    {keyspace, <<"smartpot">>},
+    {cluster_options,[
+        {contact_points, <<"172.17.3.129">>},
+        {latency_aware_routing, true},
+        {token_aware_routing, true},
+        {number_threads_io, 4},
+        {queue_size_io, 128000},
+        {core_connections_host, 1},
+        {tcp_nodelay, true},
+        {tcp_keepalive, {true, 60}},
+        {connect_timeout, 5000},
+        {request_timeout, 5000},
+        {retry_policy, {default, true}},
+        {default_consistency_level, 6}
+    ]}
+  ]
 end}.

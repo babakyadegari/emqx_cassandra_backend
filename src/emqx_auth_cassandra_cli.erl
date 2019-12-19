@@ -1,21 +1,8 @@
-%% Copyright (c) 2018 EMQ Technologies Co., Ltd. All Rights Reserved.
-%%
-%% Licensed under the Apache License, Version 2.0 (the "License");
-%% you may not use this file except in compliance with the License.
-%% You may obtain a copy of the License at
-%%
-%%     http://www.apache.org/licenses/LICENSE-2.0
-%%
-%% Unless required by applicable law or agreed to in writing, software
-%% distributed under the License is distributed on an "AS IS" BASIS,
-%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-%% See the License for the specific language governing permissions and
-%% limitations under the License.
 
 -module(emqx_auth_cassandra_cli).
 
 -include_lib("emqx/include/emqx.hrl").
--include_lib("marina/include/marina.hrl").
+-include_lib("erlcass/include/erlcass.hrl").
 -include("emqx_cassandra_backend.hrl").
 
 -export([parse_query/1]).
@@ -28,10 +15,10 @@
 parse_query(undefined) ->
     undefined;
 parse_query(Sql) ->
-    case re:run(Sql, "'%[uca]'", [global, {capture, all, list}]) of
+    case re:run(Sql, "'%[ucCad]'", [global, {capture, all, list}]) of
         {match, Variables} ->
             Params = [Var || [Var] <- Variables],
-            {re:replace(Sql, "'%[uca]'", "?", [global, {return, list}]), Params};
+            {re:replace(Sql, "'%[ucCad]'", "?", [global, {return, list}]), Params};
         nomatch ->
             {Sql, []}
     end.
@@ -40,23 +27,32 @@ parse_query(Sql) ->
 %% cassandra Query
 %%--------------------------------------------------------------------
 %
-query(Sql, Params, Credentials) ->
-    cassandra_cli:query(list_to_binary(Sql), #{values => replvar(Params, Credentials), timeout => 1000}).
+query(Query, Params, Credentials) ->
+    erlcass:execute(Query, replvar(Params, Credentials)).
 
-%marina:query(<<"select password from smartpot.user where username = ? limit 1 ALLOW FILTERING">>, #{values => <<"test">>, timeout => 1000}).
 
-replvar(Params, Credentials) ->
-    replvar(Params, Credentials, []).
+replvar(Params, ClientInfo) ->
+    replvar(Params, ClientInfo, []).
 
-replvar([], _Credentials, Acc) ->
+replvar([], _ClientInfo, Acc) ->
     lists:reverse(Acc);
-replvar(["'%u'" | Params], Credentials = #{client_id := ClientId}, Acc) ->
-    %io:format("~p ~n", [ClientId]),
-    replvar(Params, Credentials, [uuid:to_binary(binary_to_list(ClientId)) | Acc]);
-replvar(["'%c'" | Params], Credentials = #{client_id := ClientId}, Acc) ->
-    replvar(Params, Credentials, [ClientId | Acc]);
-replvar(["'%a'" | Params], Credentials = #{peername := {IpAddr, _}}, Acc) ->
-    replvar(Params, Credentials, [list_to_binary(inet_parse:ntoa(IpAddr)) | Acc]);
-replvar([Param | Params], Credentials, Acc) ->
-    replvar(Params, Credentials, [Param | Acc]).
 
+replvar(["'%u'" | Params], ClientInfo = #{username := Username}, Acc) ->
+    replvar(Params, ClientInfo, [Username | Acc]);
+replvar(["'%c'" | Params], ClientInfo = #{client_id := ClientId}, Acc) ->
+    replvar(Params, ClientInfo, [ClientId | Acc]);
+replvar(["'%a'" | Params], ClientInfo = #{peername := {IpAddr, _}}, Acc) ->
+    replvar(Params, ClientInfo, [inet_parse:ntoa(IpAddr) | Acc]);
+replvar(["'%C'" | Params], ClientInfo, Acc) ->
+    replvar(Params, ClientInfo, [safe_get(cn, ClientInfo)| Acc]);
+replvar(["'%d'" | Params], ClientInfo, Acc) ->
+    replvar(Params, ClientInfo, [safe_get(dn, ClientInfo)| Acc]);
+replvar([Param | Params], ClientInfo, Acc) ->
+    replvar(Params, ClientInfo, [Param | Acc]).
+
+safe_get(K, ClientInfo) ->
+    bin(maps:get(K, ClientInfo, undefined)).
+
+bin(A) when is_atom(A) -> atom_to_binary(A, utf8);
+bin(B) when is_binary(B) -> B;
+bin(X) -> X.

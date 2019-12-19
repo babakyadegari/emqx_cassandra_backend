@@ -3,9 +3,26 @@
               {vsn,"git"},
               {modules,[]},
               {registered,[]},
-              {applications,[kernel,stdlib,clique]},
+              {applications,[kernel,stdlib,clique,erlcass,emqx_passwd]},
               {mod,{emqx_cassandra_backend_app,[]}},
-              {env,[]},
+              {env,[{erlcass, [
+                  {log_level, 3},
+                  {keyspace, <<"keyspace">>},
+                  {cluster_options,[
+                      {contact_points, <<"172.17.3.129,172.17.3.130,172.17.3.131">>},
+                      {latency_aware_routing, true},
+                      {token_aware_routing, true},
+                      {number_threads_io, 4},
+                      {queue_size_io, 128000},
+                      {core_connections_host, 1},
+                      {tcp_nodelay, true},
+                      {tcp_keepalive, {true, 60}},
+                      {connect_timeout, 5000},
+                      {request_timeout, 5000},
+                      {retry_policy, {default, true}},
+                      {default_consistency_level, 6}
+                    ]}
+                  ]}]},
               {licenses,["Apache-2.0"]},
               {links,["Github",
                       "https://github.com/babakyadegari/emqx-cassandra_backend"]}]}.

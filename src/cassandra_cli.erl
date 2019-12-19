@@ -1,10 +1,10 @@
 -module(cassandra_cli).
 
--include_lib("marina/include/marina.hrl").
+-include_lib("erlcass/include/erlcass.hrl").
 -include_lib("emqx/include/emqx.hrl").
 -include("emqx_cassandra_backend.hrl").
 
--export([save_msg/1, query/2]).
+-export([save_msg/1, query/2, register_a_query/2]).
 
 -define(INSERTQSTR, <<"INSERT INTO smartpot.pot_msgs(device_id, week, ts, flags, headers, msg_id, payload, qos, topic) values(?, ?, ?, ?, ?, ?, ?, ?, ?)">>).
 
@@ -13,22 +13,29 @@ week_of_year({Year, Week}) ->
 
 %% queries for auth and acl modules
 query(Query, QOpts) ->
-    ?LOG(info, "DB QUERY: ~p ~p ~n", [Query, QOpts]),
-    marina:query(Query, QOpts).
+    %?LOG(info, "DB QUERY: ~p ~p ~n", [Query, QOpts]).
+		Qr = erlcass:execute(Query, QOpts),
+		% ct:print("Query result: ~p", [Qr]),
+		Qr.
 
+register_queries() ->
+		ok = erlcass:add_prepare_statement(insert_msg, {?INSERTQSTR, ?CASS_CONSISTENCY_ANY}).
+
+register_a_query(QueryName, QueryStr) ->
+	  ok = erlcass:add_prepare_statement(QueryName, QueryStr).
 
 save_msg(Msg) ->
 	[DevId, Topic] = string:split(binary_to_list(Msg#message.topic), "/"),
 	case uuid:is_valid(DevId) of
 		true ->
-            <<MID:128>> = Msg#message.id,
-    		case 
-                marina:query(?INSERTQSTR, #{values => 
-    			[uuid:to_binary(binary_to_list(Msg#message.from)), week_of_year(calendar:iso_week_number()), 
+          <<MID:128>> = Msg#message.id,
+    		case
+        	query(insert_msg, #{values =>
+    			[uuid:to_binary(binary_to_list(Msg#message.from)), week_of_year(calendar:iso_week_number()),
     			uuid:timeuuid(Msg#message.timestamp), <<"Msg#message.flags">>, <<"Msg#message.headers">>, list_to_binary(lists:flatten(io_lib:format("~32.16.0b", [MID]))),
     			Msg#message.payload, binary:encode_unsigned(Msg#message.qos), list_to_binary(Topic)], timeout => 1000}) of
     		{ok, _} -> ok;
-    		{error, Reason} -> 
+    		{error, Reason} ->
                 {error, Reason}
                 %erlang:display(erlang:get_stacktrace())
 
