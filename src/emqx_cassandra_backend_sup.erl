@@ -1,6 +1,4 @@
 -module(emqx_cassandra_backend_sup).
-
-
 -include("emqx_cassandra_backend.hrl").
 
 -export([
@@ -8,6 +6,7 @@
 ]).
 
 -behaviour(supervisor).
+
 -export([
     init/1
 ]).

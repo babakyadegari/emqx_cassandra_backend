@@ -37,6 +37,8 @@ is_a_valid_uuid(Bin) when is_binary(Bin) ->
     end.
 
 check_acl(ClientInfo, PubSub, Topic, NoMatchAction, State) ->
+    R = do_check_acl(ClientInfo, PubSub, Topic, NoMatchAction, State),
+    ?LOG(error, "check_acl: ~p", [R]),
     case do_check_acl(ClientInfo, PubSub, Topic, NoMatchAction, State) of
         ok -> emqx_metrics:inc('acl.cassandra.ignore'), ok;
         {stop, allow} -> emqx_metrics:inc('acl.cassandra.allow'), {stop, allow};

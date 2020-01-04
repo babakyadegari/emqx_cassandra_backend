@@ -7,20 +7,20 @@
 -define(APP, emqx_cassandra_backend).
 
 -include_lib("emqx/include/emqx.hrl").
-
 -include_lib("eunit/include/eunit.hrl").
-
--include_lib("common_test/include/ct.hrl").
-
+% -include_lib("common_test/include/ct.hrl").
+-include_lib("emqx/include/emqx_mqtt.hrl").
+%-include("emqx_mqtt.hrl")
 all() ->
     [{group, emqx_cassandra_backend_acl},
-     {group, emqx_cassandra_backend_auth}
-     %{group, emqx_cassandra_backend}
+     {group, emqx_cassandra_backend_auth},
+     {group, emqx_cassandra_backend_log}
     ].
 
 groups() ->
-     [{emqx_cassandra_backend_acl, [sequence], [check_acl, acl_super]},
-      {emqx_cassandra_backend_auth, [sequence], [test_auth]}
+     [{emqx_cassandra_backend_acl, [sequence], [check_acl]},
+      {emqx_cassandra_backend_auth, [sequence], [test_auth]},
+      {emqx_cassandra_backend_log, [sequence], [test_message]}
      ].
 
 init_per_suite(Config) ->
@@ -46,41 +46,71 @@ end_per_suite(_Config) ->
 
 check_acl(_) ->
     {ok, [D1, D2]} = application:get_env(?APP, dev_ids),
-    {ok, WebSerivceId} = application:get_env(?APP, webservice_client_id),
+    {ok, WebServiceId} = application:get_env(?APP, webservice_client_id),
     User1 = #{clientid => D1, username => D1, password => <<"passwd">>, zone => external},
     User2 = #{clientid => D2, username => D2, password => <<"passwd">>, zone => external},
-    WebService = #{clientid => list_to_binary(WebSerivceId), username => list_to_binary(WebSerivceId),
+    WebService = #{clientid => list_to_binary(WebServiceId), username => list_to_binary(WebServiceId),
         password => <<"dummy">>, zone => external},
     allow = emqx_access_control:check_acl(User1, subscribe, <<"t1/t2">>),
     allow = emqx_access_control:check_acl(User2, subscribe, <<"t1">>),
-    deny = emqx_access_control:check_acl(User1, publish, <<"t1">>),
+    deny  = emqx_access_control:check_acl(User1, publish, <<"t1">>),
     allow = emqx_access_control:check_acl(User2, subscribe, <<D2/binary,"/t1">>),
-    deny = emqx_access_control:check_acl(User2, subscribe, <<D1/binary,"/t1">>),
+    deny  = emqx_access_control:check_acl(User2, subscribe, <<D1/binary,"/t1">>),
     allow = emqx_access_control:check_acl(WebService, subscribe, <<D1/binary,"/t1">>),
-    allow = emqx_access_control:check_acl(WebService, subscribe, <<D1/binary,"/t1">>),
-    ok.
+    allow = emqx_access_control:check_acl(WebService, publish, <<D1/binary,"/t1">>).
 
 
-
-test_auth() ->
+test_auth(_) ->
   {ok, [D1, D2]} = application:get_env(?APP, dev_ids),
+  {ok, WebServiceId} = application:get_env(?APP, webservice_client_id),
   User1 = #{clientid => D1, username => D1, password => <<"passwd">>, zone => external},
   User2 = #{clientid => D2, username => D2, password => <<"passwd">>, zone => external},
   UserBadPass = #{clientid => D2, username => D2, password => <<"badpasswd">>, zone => external},
   {ok,#{is_superuser := false}} = emqx_access_control:authenticate(User1),
   {ok,#{is_superuser := true}} = emqx_access_control:authenticate(User2),
+  {ok,#{is_superuser := true}} = emqx_access_control:authenticate(#{clientid =>
+      list_to_binary(WebServiceId), username => list_to_binary(WebServiceId),
+      password => <<"passwd">>, zone => external}),
   BadUser = #{clientid => <<"BADUSER">>, username => <<"BADUSER">>, password => <<"passwd">>, zone => external},
   {error,badarg} = emqx_access_control:authenticate(BadUser),
-  {error,password_error} = emqx_access_control:authenticate(UserBadPass),
-  {"Finished!", "Done"}.
+  {error,password_error} = emqx_access_control:authenticate(UserBadPass).
 
-acl_super() ->
-    ok.
+
+test_message(_) ->
+  {ok, [D1, _]} = application:get_env(?APP, dev_ids),
+  {ok, WebServiceId} = application:get_env(?APP, webservice_client_id),
+  {ok, Client} = emqtt:start_link([{host, "localhost"},
+                              {clientid, D1},
+                              {username, D1},
+                              {password, <<"passwd">>}]),
+  {ok, WebService} = emqtt:start_link(
+                              [{host, "localhost"},
+                              {clientid, list_to_binary(WebServiceId)},
+                              {username, list_to_binary(WebServiceId)},
+                              {password, <<"123">>}]),
+  {ok, _} = emqtt:connect(Client),
+  {ok, _} = emqtt:connect(WebService),
+  timer:sleep(10),
+  emqtt:subscribe(Client, <<D1/binary,"/control">>, qos2),
+  timer:sleep(1000),
+  emqtt:publish(WebService, <<D1/binary,"/control">>, <<"Payload">>, qos2),
+  timer:sleep(1000),
+  receive
+      {publish, #{payload := Payload}} ->
+          ?assertEqual(<<"Payload">>, Payload)
+  after
+      1000 ->
+          ct:fail({receive_timeout, <<"Payload">>}),
+          ok
+  end,
+  emqtt:disconnect(Client),
+  emqtt:disconnect(WebService).
 
 set_special_configs(emqx) ->
     application:set_env(emqx, allow_anonymous, false),
     application:set_env(emqx, enable_acl_cache, false),
     application:set_env(emqx, plugins_loaded_file,
                           emqx_ct_helpers:deps_path(emqx, "deps/emqx/test/emqx_SUITE_data/loaded_plugins"));
+
 set_special_configs(_App) ->
     ok.

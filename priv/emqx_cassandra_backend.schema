@@ -1,20 +1,23 @@
-{mapping, "cassandra_backend.bootstrap_ips", "erlcass.bootstrap_ips", [
+{mapping, "cassandra_backend.contact_points", "emqx_cassandra_backend.erlcass", [
   {datatype, string},
   {default, "127.0.0.1"}
 ]}.
 
-{mapping, "cassandra_backend.port", "marina.port", [
+{mapping, "cassandra_backend.port", "emqx_cassandra_backend.erlcass", [
   {datatype, integer},
   {default, 9042}
 ]}.
 
-{mapping, "cassandra_backend.keyspace", "marina.keyspace", [
-  {datatype, string}
+{mapping, "cassandra_backend.keyspace", "emqx_cassandra_backend.erlcass", [
+  {datatype, string},
+  {default, "smartpot"}
 ]}.
 
-{mapping, "cassandra_backend.msg_table", "emqx_cassandra_backend.msg_table", [
-  {datatype, string}
+{mapping, "cassandra_backend.log_level", "emqx_cassandra_backend.erlcass", [
+  {datatype, integer},
+  {default, 3}
 ]}.
+
 
 {mapping, "cassandra_backend.username", "emqx_cassandra_backend.username", [
   {datatype, string},
@@ -70,28 +73,26 @@
     end
 end}.
 
-{translation, "erlcass.bootstrap_ips", fun(Conf) ->
-  Ips = cuttlefish:conf_get("cassandra_backend.bootstrap_ips", Conf),
-  string:tokens(Ips, ",")
-end}.
-
-{translation, "erlcass", fun(Conf) ->
+{translation, "emqx_cassandra_backend.erlcass", fun(Conf) ->
+  Ips = cuttlefish:conf_get("cassandra_backend.contact_points", Conf),
+  Keyspace = cuttlefish:conf_get("cassandra_backend.keyspace", Conf),
+  LogLevel = cuttlefish:conf_get("cassandra_backend.log_level", Conf),
     [
-    {log_level, 3},
-    {keyspace, <<"smartpot">>},
-    {cluster_options,[
-        {contact_points, <<"172.17.3.129">>},
-        {latency_aware_routing, true},
-        {token_aware_routing, true},
-        {number_threads_io, 4},
-        {queue_size_io, 128000},
-        {core_connections_host, 1},
-        {tcp_nodelay, true},
-        {tcp_keepalive, {true, 60}},
-        {connect_timeout, 5000},
-        {request_timeout, 5000},
-        {retry_policy, {default, true}},
-        {default_consistency_level, 6}
-    ]}
+      {log_level, LogLevel},
+      {keyspace, list_to_binary(Keyspace)},
+      {cluster_options,[
+          {contact_points, list_to_binary(Ips)},
+          {latency_aware_routing, true},
+          {token_aware_routing, true},
+          {number_threads_io, 4},
+          {queue_size_io, 128000},
+          {core_connections_host, 1},
+          {tcp_nodelay, true},
+          {tcp_keepalive, {true, 60}},
+          {connect_timeout, 5000},
+          {request_timeout, 5000},
+          {retry_policy, {default, true}},
+          {default_consistency_level, 6}
+      ]}
   ]
 end}.

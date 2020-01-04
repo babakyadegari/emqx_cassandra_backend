@@ -14,9 +14,7 @@ week_of_year({Year, Week}) ->
 %% queries for auth and acl modules
 query(Query, QOpts) ->
     %?LOG(info, "DB QUERY: ~p ~p ~n", [Query, QOpts]).
-		Qr = erlcass:execute(Query, QOpts),
-		% ct:print("Query result: ~p", [Qr]),
-		Qr.
+		erlcass:execute(Query, QOpts).
 
 register_queries() ->
 		ok = erlcass:add_prepare_statement(insert_msg, {?INSERTQSTR, ?CASS_CONSISTENCY_ANY}).
@@ -37,7 +35,6 @@ save_msg(Msg) ->
     		{ok, _} -> ok;
     		{error, Reason} ->
                 {error, Reason}
-                %erlang:display(erlang:get_stacktrace())
 
     	end;
     	false -> ignore

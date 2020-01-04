@@ -28,29 +28,37 @@ check(ClientInfo = #{password := Password}, AuthResult,
                     #{auth_query  := {AuthSql, AuthParams},
                       super_query := SuperQuery,
                       hash_type   := HashType}) ->
-    Result = case emqx_auth_cassandra_cli:query(cassandra_auth_query, AuthParams, ClientInfo) of
-                {ok, [<<"password">>, <<"salt">>], [[PassHash, Salt]]} ->
-                    emqx_passwd:check_pass({PassHash, Salt, Password}, HashType);
-                {ok, [{<<"password">>, text}],[[PassHash]]} ->
-                    emqx_passwd:check_pass({PassHash, Password}, HashType);
-                {ok, _Columns, []} ->
-                    {error, not_found};
-                {error, Reason} ->
-                    ?LOG(error, "[CASSANDRA] auth query '~p' failed: ~p", [AuthSql, Reason]),
-                    {error, Reason}
-            end,
-    case Result of
-        ok ->
-            emqx_metrics:inc('auth.cassandra.success'),
-            {stop, AuthResult#{is_superuser => is_superuser(SuperQuery, ClientInfo),
-                                anonymous => false,
-                                auth_result => success}};
-        {error, not_found} ->
-            emqx_metrics:inc('auth.cassandra.ignore'), ok;
-        {error, ResultCode} ->
-            ?LOG(error, "[CASSANDRA] auth from cassandra failed: ~p", [ResultCode]),
-            emqx_metrics:inc('auth.cassandra.failure'),
-            {stop, AuthResult#{auth_result => ResultCode, anonymous => false}}
+    {ok, WebServiceClientId} = application:get_env(?APP, webservice_client_id),
+    ClientId = binary_to_list(maps:get(clientid, ClientInfo)),
+    case string:equal(WebServiceClientId, ClientId) of
+      true -> {stop, AuthResult#{is_superuser => true,
+                          anonymous => false,
+                          auth_result => success}};
+      false -> Result = case emqx_auth_cassandra_cli:query(cassandra_auth_query, AuthParams, ClientInfo) of
+                  {ok, [<<"password">>, <<"salt">>], [[PassHash, Salt]]} ->
+                      emqx_passwd:check_pass({PassHash, Salt, Password}, HashType);
+                  {ok, [{<<"password">>, text}],[[PassHash]]} ->
+                      emqx_passwd:check_pass({PassHash, Password}, HashType);
+                  {ok, _Columns, []} ->
+                      {error, not_found};
+                  {error, Reason} ->
+                      ?LOG(error, "[CASSANDRA] auth query '~p' failed: ~p", [AuthSql, Reason]),
+                      {error, Reason}
+              end,
+      ?LOG(error, "Results: ~p", [Result]),
+      case Result of
+          ok ->
+              emqx_metrics:inc('auth.cassandra.success'),
+              {stop, AuthResult#{is_superuser => is_superuser(SuperQuery, ClientInfo),
+                                  anonymous => false,
+                                  auth_result => success}};
+          {error, not_found} ->
+              emqx_metrics:inc('auth.cassandra.ignore'), ok;
+          {error, ResultCode} ->
+              ?LOG(debug, "[CASSANDRA] auth from cassandra failed: ~p", [ResultCode]),
+              emqx_metrics:inc('auth.cassandra.failure'),
+              {stop, AuthResult#{auth_result => ResultCode, anonymous => false}}
+      end
     end.
 
 %%--------------------------------------------------------------------
