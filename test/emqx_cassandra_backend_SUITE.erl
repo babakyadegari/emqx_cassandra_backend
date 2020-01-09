@@ -19,8 +19,9 @@ all() ->
 
 groups() ->
      [{emqx_cassandra_backend_acl, [sequence], [check_acl]},
-      {emqx_cassandra_backend_auth, [sequence], [test_auth]},
-      {emqx_cassandra_backend_log, [sequence], [test_message]}
+
+      {emqx_cassandra_backend_log, [sequence], [test_message]},
+      {emqx_cassandra_backend_auth, [sequence], [test_auth]}
      ].
 
 init_per_suite(Config) ->
@@ -77,6 +78,7 @@ test_auth(_) ->
 
 
 test_message(_) ->
+  % test_save_msg(),
   {ok, [D1, _]} = application:get_env(?APP, dev_ids),
   {ok, WebServiceId} = application:get_env(?APP, webservice_client_id),
   {ok, Client} = emqtt:start_link([{host, "localhost"},
@@ -105,6 +107,30 @@ test_message(_) ->
   end,
   emqtt:disconnect(Client),
   emqtt:disconnect(WebService).
+
+test_save_msg() ->
+  Msg = {message,<<0,5,155,131,207,145,92,85,180,75,0,0,3,246,0,1>>,
+                   2,<<"4132686A-21E8-11EA-B6DA-1B3D8B8235C1">>,
+                   #{dup => false,retain => false},
+                   #{peerhost => {127,0,0,1},
+                     proto_ver => 4,protocol => mqtt,
+                     username => <<"4132686A-21E8-11EA-B6DA-1B3D8B8235C1">>},
+                   <<"1587711e-e321-48a7-92ac-ddf191361598/control">>,
+                   <<"Payload">>,1578365308984},
+  <<MID:128>> = Msg#message.id,
+  A = [Msg#message.from, cassandra_cli:week_of_year(calendar:iso_week_number()),
+    erlcass_uuid:gen_from_ts(Msg#message.timestamp), <<"Msg#message.flags">>,
+    <<"Msg#message.headers">>, list_to_binary(lists:flatten(io_lib:format("~32.16.0b", [MID]))),
+    Msg#message.payload, Msg#message.qos, Msg#message.topic],
+  ct:print("A: ~p", [A]),
+  {ok, Ts} = erlcass_uuid:gen_from_ts(Msg#message.timestamp),
+  Res = cassandra_cli:query(insert_msg,
+    [Msg#message.from, cassandra_cli:week_of_year(calendar:iso_week_number()),
+    Ts, <<"Msg#message.flags">>,
+    <<"Msg#message.headers">>, list_to_binary(lists:flatten(io_lib:format("~32.16.0b", [MID]))),
+    Msg#message.payload, Msg#message.qos, Msg#message.topic]),
+  ct:print("Res ~p", [Res]),
+  ok.
 
 set_special_configs(emqx) ->
     application:set_env(emqx, allow_anonymous, false),

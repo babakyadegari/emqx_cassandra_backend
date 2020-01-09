@@ -4,9 +4,11 @@
 -include_lib("emqx/include/emqx.hrl").
 -include("emqx_cassandra_backend.hrl").
 
--export([save_msg/1, query/2, register_a_query/2]).
+-export([publish/1, query/2, register_a_query/2, register_queries/0, week_of_year/1]).
 
--define(INSERTQSTR, <<"INSERT INTO smartpot.pot_msgs(device_id, week, ts, flags, headers, msg_id, payload, qos, topic) values(?, ?, ?, ?, ?, ?, ?, ?, ?)">>).
+-define(PUBLISH, 0).
+
+-define(INSERTQSTR, <<"INSERT INTO smartpot.thing_msgs(device_id, week, action, ts, flags, headers, msg_id, payload, qos, topic) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)">>).
 
 week_of_year({Year, Week}) ->
 	list_to_binary(integer_to_list(Year)++"-"++integer_to_list(Week)).
@@ -22,20 +24,18 @@ register_queries() ->
 register_a_query(QueryName, QueryStr) ->
 	  ok = erlcass:add_prepare_statement(QueryName, QueryStr).
 
-save_msg(Msg) ->
-	[DevId, Topic] = string:split(binary_to_list(Msg#message.topic), "/"),
-	case uuid:is_valid(DevId) of
-		true ->
-          <<MID:128>> = Msg#message.id,
-    		case
-        	query(insert_msg, #{values =>
-    			[uuid:to_binary(binary_to_list(Msg#message.from)), week_of_year(calendar:iso_week_number()),
-    			uuid:timeuuid(Msg#message.timestamp), <<"Msg#message.flags">>, <<"Msg#message.headers">>, list_to_binary(lists:flatten(io_lib:format("~32.16.0b", [MID]))),
-    			Msg#message.payload, binary:encode_unsigned(Msg#message.qos), list_to_binary(Topic)], timeout => 1000}) of
-    		{ok, _} -> ok;
-    		{error, Reason} ->
-                {error, Reason}
+publish(Msg) ->
+  <<MID:128>> = Msg#message.id,
+  {ok, Ts} = erlcass_uuid:gen_from_ts(Msg#message.timestamp),
+  Res = query(insert_msg,
+		[Msg#message.from, week_of_year(calendar:iso_week_number()), ?PUBLISH,
+		Ts, <<"Msg#message.flags">>,
+		<<"Msg#message.headers">>, list_to_binary(lists:flatten(io_lib:format("~32.16.0b", [MID]))),
+		Msg#message.payload, Msg#message.qos, Msg#message.topic]),
+	case Res of
+		{ok, _} -> ok;
+		{error, Reason} ->
+					ct:print("Error ~p ", [Reason]),
+          {error, Reason}
 
-    	end;
-    	false -> ignore
-    end.
+  end.

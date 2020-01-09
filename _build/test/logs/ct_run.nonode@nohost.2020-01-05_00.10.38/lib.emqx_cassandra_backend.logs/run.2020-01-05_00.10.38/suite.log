@@ -1,0 +1,105 @@
+=== Suite started at 2020-01-05 00:10:38
+=== Starting test, 3 test cases
+=cases         3
+=user          babak
+=host          nohost
+=hosts         nohost 
+=emulator_vsn  10.4.2
+=emulator      beam
+=otp_release   23
+=started       2020-01-05 00:10:38
+=case          emqx_cassandra_backend_SUITE:init_per_suite
+=logfile       emqx_cassandra_backend_suite.init_per_suite.html
+=started       2020-01-05 00:10:38
+=ended         2020-01-05 00:10:40
+=result        ok
+=elapsed       1.814527
+=case          ct_framework:init_per_group
+=logfile       ct_framework.init_per_group.html
+=group_props   [{suite,emqx_cassandra_backend_SUITE},
+                {name,emqx_cassandra_backend_acl},
+                sequence]
+=started       2020-01-05 00:10:40
+=ended         2020-01-05 00:10:40
+=result        ok
+=elapsed       7.2e-5
+=case          emqx_cassandra_backend_SUITE:check_acl
+=logfile       emqx_cassandra_backend_suite.check_acl.html
+=started       2020-01-05 00:10:40
+=ended         2020-01-05 00:10:40
+=result        ok
+=elapsed       0.001251
+=case          ct_framework:end_per_group
+=logfile       ct_framework.end_per_group.html
+=group_props   [{suite,emqx_cassandra_backend_SUITE},
+                {name,emqx_cassandra_backend_acl},
+                sequence]
+=started       2020-01-05 00:10:40
+=ended         2020-01-05 00:10:40
+=result        ok
+=elapsed       3.4e-5
+=group_time    0.062s
+=case          ct_framework:init_per_group
+=logfile       ct_framework.init_per_group.2114.html
+=group_props   [{name,emqx_cassandra_backend_auth},
+                sequence,
+                {suite,emqx_cassandra_backend_SUITE}]
+=started       2020-01-05 00:10:40
+=ended         2020-01-05 00:10:40
+=result        ok
+=elapsed       1.54e-4
+=case          emqx_cassandra_backend_SUITE:test_auth
+=logfile       emqx_cassandra_backend_suite.test_auth.html
+=started       2020-01-05 00:10:40
+=ended         2020-01-05 00:10:40
+=result        ok
+=elapsed       0.012822
+=case          ct_framework:end_per_group
+=logfile       ct_framework.end_per_group.2178.html
+=group_props   [{name,emqx_cassandra_backend_auth},
+                sequence,
+                {suite,emqx_cassandra_backend_SUITE}]
+=started       2020-01-05 00:10:40
+=ended         2020-01-05 00:10:40
+=result        ok
+=elapsed       1.27e-4
+=group_time    0.078s
+=case          ct_framework:init_per_group
+=logfile       ct_framework.init_per_group.2242.html
+=group_props   [{name,emqx_cassandra_backend_log},
+                sequence,
+                {suite,emqx_cassandra_backend_SUITE}]
+=started       2020-01-05 00:10:40
+=ended         2020-01-05 00:10:40
+=result        ok
+=elapsed       1.29e-4
+=case          emqx_cassandra_backend_SUITE:test_message
+=logfile       emqx_cassandra_backend_suite.test_message.html
+=started       2020-01-05 00:10:40
+=ended         2020-01-05 00:10:42
+=result        ok
+=elapsed       2.062817
+=case          ct_framework:end_per_group
+=logfile       ct_framework.end_per_group.2370.html
+=group_props   [{name,emqx_cassandra_backend_log},
+                sequence,
+                {suite,emqx_cassandra_backend_SUITE}]
+=started       2020-01-05 00:10:42
+=ended         2020-01-05 00:10:42
+=result        ok
+=elapsed       1.43e-4
+=group_time    2.129s
+=case          emqx_cassandra_backend_SUITE:end_per_suite
+=logfile       emqx_cassandra_backend_suite.end_per_suite.html
+=started       2020-01-05 00:10:42
+=ended         2020-01-05 00:10:42
+=result        ok
+=elapsed       2.0e-6
+=group_time    4.203s
+=== TEST COMPLETE, 3 ok, 0 failed of 3 test cases
+
+=finished      2020-01-05 00:10:42
+=failed        0
+=successful    3
+=user_skipped  0
+=auto_skipped  0

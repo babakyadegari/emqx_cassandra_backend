@@ -1,12 +1,9 @@
-cassandra_backend.bootstrap_ips 		= 192.168.50.10
+cassandra_backend.contact_points 		= 172.20.238.10
 cassandra_backend.port 				= 9042
-##cassandra_backend.username 			= user
-##cassandra_backend.password 			= pass
-##cassandra_backend.keyspace			= smartpot
-cassandra_backend.msg_table				= pot_msgs
-cassandra_backend.auth_table			= mqtt_auth
-
-
+cassandra_backend.log_level   = 3
+#cassandra_backend.username 	=
+#cassandra_backend.password 	=
+cassandra_backend.keyspace		= smartpot
 
 
 ##--------------------------------------------------------------------
@@ -15,7 +12,8 @@ cassandra_backend.auth_table			= mqtt_auth
 
 
 cassandra_backend.auth.webservice_client_id = 4132686A-21E8-11EA-B6DA-1B3D8B8235C1
-cassandra_backend.auth.usertable = user
+#cassandra_backend.auth.usertable = user
+
 ## Authentication query.
 ##
 ## Note that column names should be 'password' and 'salt' (if used).
@@ -29,7 +27,6 @@ cassandra_backend.auth.usertable = user
 ##  - %c: clientid
 ##
 cassandra_backend.auth.auth_query = select password from smartpot.mqtt_auth where id = '%u' limit 1
-## cassandra_backend.auth.auth_query = select password_hash as password from mqtt_user where id = '%u' limit 1
 
 ## Password hash.
 ##

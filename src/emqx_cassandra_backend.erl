@@ -5,7 +5,7 @@
 
 -define(APP, emqx_cassandra_backend).
 
--export([load/0, unload/0]).
+-export([load/1, unload/0]).
 
 %-export([on_client_connected/4, on_client_disconnected/3]).
 %-export([on_client_subscribe/3, on_client_unsubscribe/3]).
@@ -17,7 +17,7 @@
 
 -define(LOG(Level, Format, Args), emqx_logger:Level("cassandra_backend: " ++ Format, Args)).
 
-load() ->
+load(Env) ->
     %emqx:hook('client.connected', fun ?MODULE:on_client_connected/4, [Env]),
     %emqx:hook('client.disconnected', fun ?MODULE:on_client_disconnected/3, [Env]),
     %emqx:hook('client.subscribe', fun ?MODULE:on_client_subscribe/3, [Env]),
@@ -31,6 +31,7 @@ load() ->
     %emqx:hook('message.delivered', fun ?MODULE:on_message_delivered/3, [Env]),
     %emqx:hook('message.acked', fun ?MODULE:on_message_acked/3, [Env]),
     %emqx:hook('message.dropped', fun ?MODULE:on_message_dropped/3, [Env]).
+    ok = cassandra_cli:register_queries(),
     ok.
 %
 %
@@ -42,11 +43,12 @@ load() ->
 on_message_publish(Msg = #message{topic = <<"$SYS/", _/binary>>}) ->
     {ok, Msg};
 on_message_publish(Msg) ->
-    case cassandra_cli:save_msg(Msg) of
+    Res = cassandra_cli:publish(Msg),
+    case Res of
         ok -> {ok, Msg};
         {error, Reason} ->
             % should pass along the message
-            io:format("Error saving message: ~p ~n", [Reason]),
+            ?LOG(error, "Error saving message: ~p ~n", [Reason]),
             {ok, Msg}
     end.
 
@@ -272,5 +274,4 @@ on_message_publish(Msg) ->
 %a2b(A) -> erlang:atom_to_binary(A, utf8).
 %
 unload() ->
-    marina_app:stop(),
     emqx:unhook('message.publish', fun ?MODULE:on_message_publish/2).

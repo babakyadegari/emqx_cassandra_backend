@@ -16,6 +16,7 @@ start(_Start, _State) ->
     {ok, ErlcassConf} = application:get_env(?APP, erlcass),
     application:set_env([{erlcass, ErlcassConf}]),
     ok = application:start(erlcass),
+    ok = emqx_cassandra_backend:load(application:get_all_env()),
 
     if_enabled(auth_query, fun reg_authmod/1),
     if_enabled(acl_query,  fun reg_aclmod/1),

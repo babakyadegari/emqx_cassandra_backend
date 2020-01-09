@@ -1,0 +1,155 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>Test emqx_cassandra_backend_SUITE:test_message result</title>
+<meta http-equiv="cache-control" content="no-cache"></meta>
+<meta http-equiv="content-type" content="text/html; charset=utf-8"></meta>
+<link rel="stylesheet" href="../../ct_default.css" type="text/css"></link>
+<script type="text/javascript" src="../../jquery-latest.js"></script>
+<script type="text/javascript" src="../../jquery.tablesorter.min.js"></script>
+</head>
+<body>
+
+<a name="top"></a><pre>
+=== Test case: <a href="emqx_cassandra_backend_suite.src.html#test_message-1">emqx_cassandra_backend_SUITE:test_message/1</a> (click for source code)
+
+=== Config value:
+
+    [{watchdog,&lt;0.1009.0&gt;},
+     {tc_logfile,"/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/test/logs/ct_run.nonode@nohost.2020-01-05_00.17.53/lib.emqx_cassandra_backend.logs/run.2020-01-05_00.17.53/emqx_cassandra_backend_suite.test_message.html"},
+     {tc_group_properties,[{name,emqx_cassandra_backend_log},
+                           sequence,
+                           {suite,emqx_cassandra_backend_SUITE}]},
+     {tc_group_path,[]},
+     {data_dir,"/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/test/lib/emqx_cassandra_backend/test/emqx_cassandra_backend_SUITE_data/"},
+     {priv_dir,"/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/test/logs/ct_run.nonode@nohost.2020-01-05_00.17.53/lib.emqx_cassandra_backend.logs/run.2020-01-05_00.17.53/log_private/"}]
+
+=== Current directory is "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/test/logs/ct_run.nonode@nohost.2020-01-05_00.17.53"
+
+=== Started at 2020-01-05 00:17:56
+
+<br />
+
+</pre>
+<div class="sasl"><pre><b>*** System report during emqx_cassandra_backend_SUITE:test_message/1 in emqx_cassandra_backend_log 2020-01-05 00:17:56.120 ***</b>
+=ERROR REPORT==== 5-Jan-2020::00:17:56.120575 ===
+cassandra_backend: Results: ok
+
+</pre></div>
+<pre>
+
+</pre>
+<div class="sasl"><pre><b>*** System report during emqx_cassandra_backend_SUITE:test_message/1 in emqx_cassandra_backend_log 2020-01-05 00:17:56.147 ***</b>
+=ERROR REPORT==== 5-Jan-2020::00:17:56.146823 ===
+cassandra_backend: check_acl: {stop,allow}
+
+</pre></div>
+<pre>
+
+</pre>
+<div class="sasl"><pre><b>*** System report during emqx_cassandra_backend_SUITE:test_message/1 in emqx_cassandra_backend_log 2020-01-05 00:17:57.174 ***</b>
+=ERROR REPORT==== 5-Jan-2020::00:17:57.173784 ===
+[Hooks] Failed to execute fun emqx_cassandra_backend:on_message_publish/1([{message,
+                                                                            &lt;&lt;0,5,155,
+                                                                              96,46,
+                                                                              40,220,
+                                                                              168,180,
+                                                                              75,0,0,
+                                                                              3,253,0,
+                                                                              1&gt;&gt;,
+                                                                            2,
+                                                                            &lt;&lt;"4132686A-21E8-11EA-B6DA-1B3D8B8235C1"&gt;&gt;,
+                                                                            #{dup =&gt;
+                                                                               false,
+                                                                              retain =&gt;
+                                                                               false},
+                                                                            #{peerhost =&gt;
+                                                                               {127,
+                                                                                0,
+                                                                                0,
+                                                                                1},
+                                                                              proto_ver =&gt;
+                                                                               4,
+                                                                              protocol =&gt;
+                                                                               mqtt,
+                                                                              username =&gt;
+                                                                               &lt;&lt;"4132686A-21E8-11EA-B6DA-1B3D8B8235C1"&gt;&gt;},
+                                                                            &lt;&lt;"ce82a26c-da51-4553-b6eb-eaaa19a95c07/control"&gt;&gt;,
+                                                                            &lt;&lt;"Payload"&gt;&gt;,
+                                                                            1578212277148}]): {undef,
+                                                                                               [{uuid,
+                                                                                                 timeuuid,
+                                                                                                 [1578212277148],
+                                                                                                 []},
+                                                                                                {cassandra_cli,
+                                                                                                 save_msg,
+                                                                                                 1,
+                                                                                                 [{file,
+                                                                                                   "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/src/cassandra_cli.erl"},
+                                                                                                  {line,
+                                                                                                   33}]},
+                                                                                                {emqx_cassandra_backend,
+                                                                                                 on_message_publish,
+                                                                                                 1,
+                                                                                                 [{file,
+                                                                                                   "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/src/emqx_cassandra_backend.erl"},
+                                                                                                  {line,
+                                                                                                   47}]},
+                                                                                                {emqx_hooks,
+                                                                                                 safe_execute,
+                                                                                                 2,
+                                                                                                 [{file,
+                                                                                                   "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/default/lib/emqx/src/emqx_hooks.erl"},
+                                                                                                  {line,
+                                                                                                   164}]},
+                                                                                                {emqx_hooks,
+                                                                                                 do_run_fold,
+                                                                                                 3,
+                                                                                                 [{file,
+                                                                                                   "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/default/lib/emqx/src/emqx_hooks.erl"},
+                                                                                                  {line,
+                                                                                                   143}]},
+                                                                                                {emqx_broker,
+                                                                                                 publish,
+                                                                                                 1,
+                                                                                                 [{file,
+                                                                                                   "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/default/lib/emqx/src/emqx_broker.erl"},
+                                                                                                  {line,
+                                                                                                   202}]},
+                                                                                                {emqx_session,
+                                                                                                 publish,
+                                                                                                 3,
+                                                                                                 [{file,
+                                                                                                   "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/default/lib/emqx/src/emqx_session.erl"},
+                                                                                                  {line,
+                                                                                                   289}]},
+                                                                                                {emqx_channel,
+                                                                                                 do_publish,
+                                                                                                 3,
+                                                                                                 [{file,
+                                                                                                   "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/default/lib/emqx/src/emqx_channel.erl"},
+                                                                                                  {line,
+                                                                                                   410}]}]}
+
+</pre></div>
+<pre>
+<a name="end"></a>
+
+
+=== Ended at 2020-01-05 00:17:58
+=== successfully completed test case
+=== === Returned value: ok
+</pre>
+<center>
+<br /><hr /><p>
+<a href="../../../all_runs.html">Test run history
+</a>  |  <a href="../../../index.html">Top level test index
+</a>  |  <a href="../../../suite.log.latest.html">Latest test result</a>
+</p>
+<div class="copyright">Copyright &copy; 2020 <a href="http://www.erlang.org">Open Telecom Platform</a><br />
+Updated: <!--date-->Sun Jan 05 2020 00:17:56<!--/date--><br />
+</div>
+</center>
+</body>
+</html>
