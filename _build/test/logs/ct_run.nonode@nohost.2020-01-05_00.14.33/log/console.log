@@ -1,6 +1,0 @@
-2020-01-05 00:14:35.664 [info] <0.966.0>@erlcass_nif:load_nif:46 loading library: "/home/babak/stuff/smartpot/emqx-rel/_build/emqx/lib/emqx_cassandra_backend/_build/default/lib/erlcass/priv/erlcass_nif" 
-2020-01-05 00:14:35.710 [info] <0.970.0>@erlcass:session_create:400 session <0.970.0> connection complete result: ok
-2020-01-05 00:14:35.711 [info] <0.970.0>@erlcass:handle_info:330 session: <0.970.0> prepared statement id: cassandra_auth_query result: {ok,#Ref<0.1927867199.2745565184.160114>}
-2020-01-05 00:14:35.712 [info] <0.970.0>@erlcass:handle_info:330 session: <0.970.0> prepared statement id: cassandra_auth_super_query result: {ok,#Ref<0.1927867199.2745565184.160115>}
-2020-01-05 00:14:35.712 [info] <0.970.0>@erlcass:handle_info:330 session: <0.970.0> prepared statement id: cassandra_acl_query result: {ok,#Ref<0.1927867199.2745565184.160116>}
-2020-01-05 00:14:35.715 [info] <0.970.0>@erlcass:handle_info:330 session: <0.970.0> prepared statement id: insert_dev result: {ok,#Ref<0.1927867199.2745565184.160117>}
