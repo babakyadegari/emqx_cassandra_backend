@@ -3,7 +3,7 @@
               {vsn,"git"},
               {modules,[]},
               {registered,[emqx_cassandra_backend_sup]},
-              {applications,[kernel,stdlib,clique,emqx_passwd,lager]},
+              {applications,[kernel,stdlib,clique,emqx_passwd]},
               {mod,{emqx_cassandra_backend_app,[]}},
               {env,[]},
               {licenses,["Apache-2.0"]},

@@ -7,32 +7,40 @@
 
 -export([load/1, unload/0]).
 
-%-export([on_client_connected/4, on_client_disconnected/3]).
-%-export([on_client_subscribe/3, on_client_unsubscribe/3]).
+-export([on_client_connected/3, on_client_disconnected/4]).
+-export([on_client_subscribe/4, on_client_unsubscribe/4]).
 %-export([on_session_created/3, on_session_subscribed/4, on_session_unsubscribed/4,
 %         on_session_terminated/3]).
 %-export([on_message_publish/2, on_message_delivered/3, on_message_acked/3]).
 
--export([on_message_publish/1]).
+-export([on_message_publish/2]).
 
 -define(LOG(Level, Format, Args), emqx_logger:Level("cassandra_backend: " ++ Format, Args)).
 
 load(Env) ->
-    %emqx:hook('client.connected', fun ?MODULE:on_client_connected/4, [Env]),
-    %emqx:hook('client.disconnected', fun ?MODULE:on_client_disconnected/3, [Env]),
-    %emqx:hook('client.subscribe', fun ?MODULE:on_client_subscribe/3, [Env]),
-    %emqx:hook('client.unsubscribe', fun ?MODULE:on_client_unsubscribe/3, [Env]),
-    %emqx:hook('session.created', fun ?MODULE:on_session_created/3, [Env]),
-    %emqx:hook('session.resumed', fun ?MODULE:on_session_resumed/3, [Env]),
-    %emqx:hook('session.subscribed', fun ?MODULE:on_session_subscribed/4, [Env]),
-    %emqx:hook('session.unsubscribed', fun ?MODULE:on_session_unsubscribed/4, [Env]),
-    %emqx:hook('session.terminated', fun ?MODULE:on_session_terminated/3, [Env]),
-    emqx:hook('message.publish', fun ?MODULE:on_message_publish/1),
-    %emqx:hook('message.delivered', fun ?MODULE:on_message_delivered/3, [Env]),
-    %emqx:hook('message.acked', fun ?MODULE:on_message_acked/3, [Env]),
-    %emqx:hook('message.dropped', fun ?MODULE:on_message_dropped/3, [Env]).
-    ok = cassandra_cli:register_queries(),
-    ok.
+
+    % emqx:hook('client.connect',      {?MODULE, on_client_connect, [Env]}),
+    % emqx:hook('client.connack',      {?MODULE, on_client_connack, [Env]}),
+    % emqx:hook('client.connected',    {?MODULE, on_client_connected, [Env]}),
+    emqx:hook('client.connected',    {?MODULE, on_client_connected, [Env]}),
+    emqx:hook('client.disconnected', {?MODULE, on_client_disconnected, [Env]}),
+    % emqx:hook('client.authenticate', {?MODULE, on_client_authenticate, [Env]}),
+    % emqx:hook('client.check_acl',    {?MODULE, on_client_check_acl, [Env]}),
+    emqx:hook('client.subscribe',    {?MODULE, on_client_subscribe, [Env]}),
+    emqx:hook('client.unsubscribe',  {?MODULE, on_client_unsubscribe, [Env]}),
+    % emqx:hook('session.created',     {?MODULE, on_session_created, [Env]}),
+    % emqx:hook('session.subscribed',  {?MODULE, on_session_subscribed, [Env]}),
+    % emqx:hook('session.unsubscribed',{?MODULE, on_session_unsubscribed, [Env]}),
+    % emqx:hook('session.resumed',     {?MODULE, on_session_resumed, [Env]}),
+    % emqx:hook('session.discarded',   {?MODULE, on_session_discarded, [Env]}),
+    % emqx:hook('session.takeovered',  {?MODULE, on_session_takeovered, [Env]}),
+    % emqx:hook('session.terminated',  {?MODULE, on_session_terminated, [Env]}),
+    emqx:hook('message.publish',     {?MODULE, on_message_publish, [Env]}),
+    % emqx:hook('message.delivered',   {?MODULE, on_message_delivered, [Env]}),
+    % emqx:hook('message.acked',       {?MODULE, on_message_acked, [Env]}),
+    % emqx:hook('message.dropped',     {?MODULE, on_message_dropped, [Env]}).
+
+    ok = cassandra_cli:register_queries().
 %
 %
 %
@@ -40,9 +48,9 @@ load(Env) ->
 %%% Message publish
 %%%--------------------------------------------------------------------
 %
-on_message_publish(Msg = #message{topic = <<"$SYS/", _/binary>>}) ->
-    {ok, Msg};
-on_message_publish(Msg) ->
+% on_message_publish(Msg = #message{topic = <<"$SYS/", _/binary>>}) ->
+%     {ok, Msg};
+on_message_publish(Msg, _Env) ->
     Res = cassandra_cli:publish(Msg),
     case Res of
         ok -> {ok, Msg};
@@ -53,75 +61,65 @@ on_message_publish(Msg) ->
     end.
 
 
-%%--------------------------------------------------------------------
-%% Client connected
-%%--------------------------------------------------------------------
-%{
-%on_client_connected(#{client_id := ClientId, username := Username}, 0, _ConnInfo, _Env) ->
-%    Params = [{action, client_connected},
-%              {client_id, ClientId},
-%              {username, Username},
-%              {conn_ack, 0}],
-%    send_http_request(Params),
-%    ok;
+%--------------------------------------------------------------------
+% Client connected
+%--------------------------------------------------------------------
 
-%on_client_connected(#{}, _ConnAck, _ConnInfo, _Env) ->
-%    ok.
-%}
+on_client_connected(ClientInfo = #{clientid := ClientId}, ConnInfo, _Env) ->
+   case cassandra_cli:log_actions(ClientId, cassandra_cli:action_types(client_connect), maps:get(connected_at, ConnInfo)*1000) of
+     ok -> ok;
+     {error, Reason} ->
+         ?LOG(error, "Error logging action: ~p ~n", [Reason]),
+         ok
+   end.
+%--------------------------------------------------------------------
+% Client disconnected
+%--------------------------------------------------------------------
+
+on_client_disconnected(ClientInfo = #{clientid := ClientId}, Reason, ConnInfo, _Env) ->
+  ct:print("times ~p ~p", [erlang:system_time(millisecond), maps:get(disconnected_at, ConnInfo)]),
+   case cassandra_cli:log_actions(ClientId, cassandra_cli:action_types(client_disconnect), Reason, maps:get(disconnected_at, ConnInfo)*1000) of
+     ok -> ok;
+     {error, Reas} ->
+         ?LOG(error, "Error logging action: ~p ~n", [Reas]),
+         ok
+   end,
+ ok.
+
 %%--------------------------------------------------------------------
-%% Client disconnected
+%% Client subscribe
 %%--------------------------------------------------------------------
-%
-%on_client_disconnected(#{}, auth_failure, _Env) ->
-%    ok;
-%on_client_disconnected(Client, {shutdown, Reason}, Env) when is_atom(Reason) ->
-%    on_client_disconnected(Reason, Client, Env);
-%on_client_disconnected(#{client_id := ClientId, username := Username}, Reason, _Env)
-%    when is_atom(Reason) ->
-%    Params = [{action, client_disconnected},
-%              {client_id, ClientId},
-%              {username, Username},
-%              {reason, Reason}],
-%    send_http_request(Params),
-%    ok;
-%on_client_disconnected(_, Reason, _Env) ->
-%    ?LOG(error, "Client disconnected, cannot encode reason: ~p", [Reason]),
-%    ok.
-%
-%%%--------------------------------------------------------------------
-%%% Client subscribe
-%%%--------------------------------------------------------------------
-%
-%on_client_subscribe(#{client_id := ClientId, username := Username}, TopicTable, {Filter}) ->
-%    lists:foreach(fun({Topic, Opts}) ->
-%      with_filter(
-%        fun() ->
-%          Params = [{action, client_subscribe},
-%                    {client_id, ClientId},
-%                    {username, Username},
-%                    {topic, Topic},
-%                    {opts, Opts}],
-%          send_http_request(Params)
-%        end, Topic, Filter)
-%    end, TopicTable).
-%
-%%%--------------------------------------------------------------------
-%%% Client unsubscribe
-%%%--------------------------------------------------------------------
-%
-%on_client_unsubscribe(#{client_id := ClientId, username := Username}, TopicTable, {Filter}) ->
-%    lists:foreach(fun({Topic, Opts}) ->
-%      with_filter(
-%        fun() ->
-%          Params = [{action, client_unsubscribe},
-%                    {client_id, ClientId},
-%                    {username, Username},
-%                    {topic, Topic},
-%                    {opts, Opts}],
-%          send_http_request(Params)
-%        end, Topic, Filter)
-%    end, TopicTable).
-%
+
+on_client_subscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
+   lists:foreach(fun({Topic, Opts}) ->
+     case cassandra_cli:log_actions(ClientId, cassandra_cli:action_types(client_subscribe),
+       Topic, erlang:system_time(millisecond)) of
+       ok -> ok;
+       {error, Reas} ->
+           ct:print("Error ~p ", [Reas]),
+           ?LOG(error, "Error logging action: ~p ~n", [Reas]),
+           ok
+     end
+   end, TopicFilters),
+   {ok, TopicFilters}.
+
+%%--------------------------------------------------------------------
+%% Client unsubscribe
+%%--------------------------------------------------------------------
+
+on_client_unsubscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
+   lists:foreach(fun({Topic, Opts}) ->
+     case cassandra_cli:log_actions(ClientId, cassandra_cli:action_types(client_unsubscribe),
+       Topic, erlang:system_time(millisecond)) of
+       ok -> ok;
+       {error, Reas} ->
+           ct:print("Error ~p ", [Reas]),
+           ?LOG(error, "Error logging action: ~p ~n", [Reas]),
+           ok
+     end
+   end, TopicFilters),
+   {ok, TopicFilters}.
+
 %%%--------------------------------------------------------------------
 %%% Session created
 %%%--------------------------------------------------------------------
@@ -250,21 +248,21 @@ on_message_publish(Msg) ->
 %    Filter = proplists:get_value(<<"topic">>, Params),
 %    parse_rule(Rules, [{list_to_atom(Rule), Action, Filter} | Acc]).
 %
-%with_filter(Fun, _, undefined) ->
-%    Fun(), ok;
-%with_filter(Fun, Topic, Filter) ->
-%    case emqx_topic:match(Topic, Filter) of
-%        true  -> Fun(), ok;
-%        false -> ok
-%    end.
-%
-%with_filter(Fun, _, _, undefined) ->
-%    Fun();
-%with_filter(Fun, Msg, Topic, Filter) ->
-%    case emqx_topic:match(Topic, Filter) of
-%        true  -> Fun();
-%        false -> {ok, Msg}
-%    end.
+with_filter(Fun, _, undefined) ->
+   Fun(), ok;
+with_filter(Fun, Topic, Filter) ->
+   case emqx_topic:match(Topic, Filter) of
+       true  -> Fun(), ok;
+       false -> ok
+   end.
+
+with_filter(Fun, _, _, undefined) ->
+   Fun();
+with_filter(Fun, Msg, Topic, Filter) ->
+   case emqx_topic:match(Topic, Filter) of
+       true  -> Fun();
+       false -> {ok, Msg}
+   end.
 %
 %format_from(Message = #message{from = From}) when is_atom(From) ->
 %    format_from(Message#message{from = a2b(From)});

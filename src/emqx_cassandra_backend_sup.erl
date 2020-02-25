@@ -19,13 +19,16 @@ start_link() ->
 
 
 init([]) ->
-    {ok, {{one_for_all, 0, 1}, []}}.
+    {ok, Opts} = application:get_env(?APP, erlcass),
+    {ok, {{one_for_one, 10, 100}, [#{id => cassandra_cli,
+                    start => {cassandra_cli, connect, [Opts]},
+                    restart => permanent,
+                    shutdown => brutal_kill,
+                    type => worker,
+                    modules => [cassandra_cli]}]}}.
+                    
+    %PoolSpec = ecpool:pool_spec(?APP, ?APP, cassandra_cli, Opts),
+    %{ok, {{one_for_one, 10, 100}, [PoolSpec]}}.
 
-% init([]) ->
-%     {ok, {{one_for_all, 0, 1},
-%     	[{serv,
-% 			{marina_sup, start_link, []},
-% 			permanent,
-% 			5000, % Shutdown time
-% 			supervisor,
-% 				[]}]}}.
+%{ok, Opts} = application:get_env(emqx_cassandra_backend, erlcass).
+%application:set_env([{erlcass, Opts}]).

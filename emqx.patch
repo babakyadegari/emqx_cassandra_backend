@@ -1,0 +1,23 @@
+--- rebar.config
++++ ../rebar.config
+@@ -18,7 +18,9 @@
+   emqx_web_hook,
+   emqx_delayed_publish,
+   emqx_recon,
+-  emqx_rule_engine
++  emqx_rule_engine,
++  {erlcass, {git, "https://github.com/silviucpp/erlcass", {branch, "v4.0.0"}}},
++  {emqx_cassandra_backend, {git, "https://github.com/babakyadegari/emqx_cassandra_backend", {branch, "develop"}}}
+  ]}.
+
+ %% Added to deps list for 'cloud' profile
+@@ -82,7 +84,8 @@
+     {emqx_web_hook, load},
+     {emqx_delayed_publish, load},
+     {emqx_recon, load},
+-    {emqx_rule_engine, load}
++    {emqx_rule_engine, load},
++    {emqx_cassandra_backend, load}
+    ]},
+   {overlay,
+    [{mkdir,"etc/"},

@@ -18,23 +18,29 @@ all() ->
     ].
 
 groups() ->
-     [{emqx_cassandra_backend_acl, [sequence], [check_acl]},
+     [{emqx_cassandra_backend_acl, [sequence], [test_auth]},
+      {emqx_cassandra_backend_auth, [sequence], [check_acl]},
+      {emqx_cassandra_backend_log, [sequence], [test_message]}
 
-      {emqx_cassandra_backend_log, [sequence], [test_message]},
-      {emqx_cassandra_backend_auth, [sequence], [test_auth]}
      ].
 
 init_per_suite(Config) ->
-    emqx_ct_helpers:start_apps([emqx_cassandra_backend], fun set_special_configs/1),
-    {ok, D1} = erlcass_uuid:gen_random(),
-    {ok, D2} = erlcass_uuid:gen_random(),
-    application:set_env(?APP, dev_ids, [D1, D2]),
+    emqx_ct_helpers:start_apps([emqx, emqx_cassandra_backend], fun set_special_configs/1),
+    {ok, D1} = gen_random_mac(),
+    {ok, D2} = gen_random_mac(),
+    % ct:print("D1: ", [D1]),
+    % ct:print("D2: ", [D2]),
+    User1 = #{clientid => D1, username => D1, password => D1, zone => external},
+    User2 = #{clientid => D2, username => D2, password => D2, zone => external},
+    APIService = #{clientid => <<"APIService">>, username => <<"APIService">>,
+        password => <<"password">>, zone => external},
+    application:set_env(?APP, mock_users, [User1,User2,APIService]),
     {ok, Hash} = application:get_env(?APP, password_hash),
-    cassandra_cli:register_a_query(insert_dev, <<"insert into smartpot.mqtt_auth(id, password, is_superuser) values(?, ?, ?)">>),
+    ok = cassandra_cli:register_a_query(insert_dev, <<"insert into smartpot.mqtt_auth(id, password, is_superuser) values(?, ?, ?)">>),
     %% mock data to DB!
-    PHash = emqx_passwd:hash(Hash, "passwd"),
-    cassandra_cli:query(insert_dev, [D1, PHash, 0]),
-    cassandra_cli:query(insert_dev, [D2, PHash, 1]),
+    ok = cassandra_cli:query(insert_dev, [D1, emqx_passwd:hash(Hash, D1), 0]),
+    ok = cassandra_cli:query(insert_dev, [D2, emqx_passwd:hash(Hash, D2), 0]),
+    ok = cassandra_cli:query(insert_dev, [<<"APIService">>, emqx_passwd:hash(Hash, "password"), 1]),
     Config.
 
 end_per_suite(_Config) ->
@@ -45,54 +51,50 @@ end_per_suite(_Config) ->
     %emqx_ct_helpers:stop_apps([emqx_cassandra_backend]).
     ok.
 
-check_acl(_) ->
-    {ok, [D1, D2]} = application:get_env(?APP, dev_ids),
-    {ok, WebServiceId} = application:get_env(?APP, webservice_client_id),
-    User1 = #{clientid => D1, username => D1, password => <<"passwd">>, zone => external},
-    User2 = #{clientid => D2, username => D2, password => <<"passwd">>, zone => external},
-    WebService = #{clientid => list_to_binary(WebServiceId), username => list_to_binary(WebServiceId),
-        password => <<"dummy">>, zone => external},
-    allow = emqx_access_control:check_acl(User1, subscribe, <<"t1/t2">>),
-    allow = emqx_access_control:check_acl(User2, subscribe, <<"t1">>),
-    deny  = emqx_access_control:check_acl(User1, publish, <<"t1">>),
-    allow = emqx_access_control:check_acl(User2, subscribe, <<D2/binary,"/t1">>),
-    deny  = emqx_access_control:check_acl(User2, subscribe, <<D1/binary,"/t1">>),
-    allow = emqx_access_control:check_acl(WebService, subscribe, <<D1/binary,"/t1">>),
-    allow = emqx_access_control:check_acl(WebService, publish, <<D1/binary,"/t1">>).
-
-
 test_auth(_) ->
-  {ok, [D1, D2]} = application:get_env(?APP, dev_ids),
-  {ok, WebServiceId} = application:get_env(?APP, webservice_client_id),
-  User1 = #{clientid => D1, username => D1, password => <<"passwd">>, zone => external},
-  User2 = #{clientid => D2, username => D2, password => <<"passwd">>, zone => external},
-  UserBadPass = #{clientid => D2, username => D2, password => <<"badpasswd">>, zone => external},
-  {ok,#{is_superuser := false}} = emqx_access_control:authenticate(User1),
-  {ok,#{is_superuser := true}} = emqx_access_control:authenticate(User2),
-  {ok,#{is_superuser := true}} = emqx_access_control:authenticate(#{clientid =>
-      list_to_binary(WebServiceId), username => list_to_binary(WebServiceId),
-      password => <<"passwd">>, zone => external}),
+  {ok, [U1, U2, APIService]} = application:get_env(?APP, mock_users),
+  UserBadPass = #{clientid => maps:get(clientid, U1), username => maps:get(username, U1),
+    password => <<"badpasswd">>, zone => external},
+  {ok,#{is_superuser := false}} = emqx_access_control:authenticate(U1),
+  {ok,#{is_superuser := false}} = emqx_access_control:authenticate(U2),
+  {ok,#{is_superuser := true}} = emqx_access_control:authenticate(APIService),
   BadUser = #{clientid => <<"BADUSER">>, username => <<"BADUSER">>, password => <<"passwd">>, zone => external},
-  {error,badarg} = emqx_access_control:authenticate(BadUser),
+  {error,not_authorized} = emqx_access_control:authenticate(BadUser),
   {error,password_error} = emqx_access_control:authenticate(UserBadPass).
+
+
+check_acl(_) ->
+    {ok, [U1, U2, APIService]} = application:get_env(?APP, mock_users),
+    % User1 = #{clientid => D1, username => D1, password => D1, zone => external},
+    % User2 = #{clientid => D2, username => D2, password => D2, zone => external},
+    % WebService = #{clientid => <<"APIService">>, username => <<"APIService">>,
+        % password => <<"password">>, zone => external},
+
+  allow = emqx_access_control:check_acl(U1, subscribe, <<"t1/t2">>),
+  allow = emqx_access_control:check_acl(U2, subscribe, <<"some/general/topic">>),
+  deny  = emqx_access_control:check_acl(U1, publish, <<"some/general/topic">>),
+  D1 = maps:get(clientid, U1),
+  D2 = maps:get(clientid, U2),
+  allow = emqx_access_control:check_acl(U2, subscribe, <<D2/binary,"/t1">>),
+  deny  = emqx_access_control:check_acl(U2, subscribe, <<D1/binary,"/t1">>),
+  {ok, #{is_superuser := IsSuperUser}} = emqx_access_control:authenticate(APIService),
+
+  APIServiceAuth = APIService#{is_superuser => IsSuperUser},
+  allow = emqx_access_control:check_acl(APIServiceAuth, subscribe, <<D1/binary,"/t1">>),
+  allow = emqx_access_control:check_acl(APIServiceAuth, publish, <<D1/binary,"/t1">>),
+  allow = emqx_access_control:check_acl(APIServiceAuth, subscribe, <<"some/general/topic">>),
+  allow = emqx_access_control:check_acl(APIServiceAuth, publish, <<"some/general/topic">>).
 
 
 test_message(_) ->
   % test_save_msg(),
-  {ok, [D1, _]} = application:get_env(?APP, dev_ids),
-  {ok, WebServiceId} = application:get_env(?APP, webservice_client_id),
-  {ok, Client} = emqtt:start_link([{host, "localhost"},
-                              {clientid, D1},
-                              {username, D1},
-                              {password, <<"passwd">>}]),
-  {ok, WebService} = emqtt:start_link(
-                              [{host, "localhost"},
-                              {clientid, list_to_binary(WebServiceId)},
-                              {username, list_to_binary(WebServiceId)},
-                              {password, <<"123">>}]),
+  {ok, [U1, _, APIService]} = application:get_env(?APP, mock_users),
+  {ok, Client} = emqtt:start_link(U1#{host => "localhost"}),
+  {ok, WebService} = emqtt:start_link(APIService#{host => "localhost", is_superuser => false}),
   {ok, _} = emqtt:connect(Client),
   {ok, _} = emqtt:connect(WebService),
   timer:sleep(10),
+  D1 = maps:get(clientid, U1),
   emqtt:subscribe(Client, <<D1/binary,"/control">>, qos2),
   timer:sleep(1000),
   emqtt:publish(WebService, <<D1/binary,"/control">>, <<"Payload">>, qos2),
@@ -105,6 +107,9 @@ test_message(_) ->
           ct:fail({receive_timeout, <<"Payload">>}),
           ok
   end,
+  emqtt:unsubscribe(Client, <<D1/binary,"/control">>),
+  emqtt:publish(Client, <<D1/binary,"/sensor/1">>, <<"data">>, qos2),
+  timer:sleep(1000),
   emqtt:disconnect(Client),
   emqtt:disconnect(WebService).
 
@@ -140,3 +145,6 @@ set_special_configs(emqx) ->
 
 set_special_configs(_App) ->
     ok.
+
+gen_random_mac() ->
+  {ok, list_to_binary(string:join([integer_to_list(rand:uniform(255), 16) || X <- [1,2,3,4,5,6]], ":"))}.

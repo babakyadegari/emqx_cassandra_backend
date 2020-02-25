@@ -11,16 +11,10 @@
 
 start(_Start, _State) ->
     {ok, Sup} = emqx_cassandra_backend_sup:start_link(),
-    emqx_cassandra_backend_cfg:register(),
-
-    {ok, ErlcassConf} = application:get_env(?APP, erlcass),
-    application:set_env([{erlcass, ErlcassConf}]),
-    ok = application:start(erlcass),
-    ok = emqx_cassandra_backend:load(application:get_all_env()),
-
+    ok = emqx_cassandra_backend:load([]),
+    % ok = test_hook:load([]),
     if_enabled(auth_query, fun reg_authmod/1),
     if_enabled(acl_query,  fun reg_aclmod/1),
-
     {ok, Sup}.
 
 reg_authmod(AuthQuery) ->
@@ -47,9 +41,6 @@ reg_aclmod(AclQuery) ->
 
 stop(_State) ->
     prep_stop(_State),
-    erlcass:stop(),
-    emqx_cassandra_backend:unload(),
-    emqx_cassandra_backend_cfg:unregister(),
     ok.
 
 if_enabled(Cfg, Fun) ->
@@ -65,5 +56,5 @@ prep_stop(State) ->
 
     emqx:unhook('client.authenticate', fun emqx_auth_cassandra:check/3),
     emqx:unhook('client.check_acl', fun emqx_acl_cassandra:check_acl/5),
-    emqx_cassandra_backend_cfg:unregister(),
+    % emqx_cassandra_backend_cfg:unregister(),
     State.

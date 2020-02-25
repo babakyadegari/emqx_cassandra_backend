@@ -1,7 +1,7 @@
-ARG BUILD_FROM=alpine:3.10
+ARG BUILD_FROM=erlang:22.1-alpine
 ARG RUN_FROM=alpine:3.10
 
-FROM ${BUILD_FROM} AS cass-cpp
+FROM ${BUILD_FROM} AS emqx-builder
 LABEL builder=true
 #ENV CPP_DIR /cpp-driver
 
@@ -17,7 +17,11 @@ RUN apk add git \
     bsd-compat-headers \
     libuv-dev \
     zlib \
-    cmake
+    cmake \
+    sed \
+    bash \
+    libc-dev
+
 
 RUN mkdir -p cpp-driver \
   && git clone https://github.com/datastax/cpp-driver.git cpp-driver \
@@ -26,21 +30,91 @@ RUN mkdir -p cpp-driver \
 
 WORKDIR cpp-driver/build
 
-RUN cmake .. -DCASS_BUILD_STATIC=ON -DCASS_BUILD_SHARED=OFF -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC \
-  && make -j 4
+RUN cmake .. -DCASS_BUILD_STATIC=ON -DCASS_BUILD_SHARED=OFF -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC
+RUN make -j 8
 
-RUN rm -rf cpp-driver/.git
+RUN mkdir -p /emqx-rel
+RUN git clone https://github.com/emqx/emqx-rel.git /emqx-rel
+ARG EMQX_DEPS_DEFAULT_VSN=develop
+ARG EMQX_NAME=emqx
 
 
+#BUILD ERLCASS STUFF
+RUN git clone --branch 'v4.0.0' https://github.com/silviucpp/erlcass.git /emqx-rel/_build/emqx/lib/erlcass/
 
-FROM erlang:22.1-alpine as emqx-base
+RUN echo '{base_dir, "/emqx-rel/_build"}.' >> rebar.config
+
+RUN mkdir -p /emqx-rel/_build/emqx/lib/erlcass/_build/deps/
+RUN cp -r /cpp-driver /emqx-rel/_build/emqx/lib/erlcass/_build/deps/
+WORKDIR /emqx-rel
+
+COPY ./rebar.patch /emqx-rel
+COPY ./makefile.patch /emqx-rel
+RUN patch < ./rebar.patch \
+    && patch < ./makefile.patch
+
+RUN make
+
+RUN cp -r /emqx-rel/_build/emqx/ /emqx-rel/_build/emqx+test/
+RUN cp -r /emqx-rel/_build/emqx/lib/ /emqx-rel/_build/default/
+
+VOLUME ["/emqx-rel/_build/emqx/lib/emqx_cassandra_backend"]
+        #"/emqx-rel/_build/emqx+test/lib/emqx_cassandra_backend", \
+        #"/emqx-rel/_build/default/lib/emqx_cassandra_backend"]
+
+CMD ["/emqx-rel/_build/emqx/rel/emqx/bin/emqx", "start"]
+CMD ["tail", "-f", "/dev/null"]
+
+
+FROM erlang:22.1-alpine as emqx-cass-dev
+VOLUME ["/emqx_cassandra_backend"]
+COPY --from=emqx-builder /emqx-rel /emqx-rel
 
 RUN apk add git \
     curl \
     gcc \
     g++ \
     make \
-    ncurses-dev \
+    bsd-compat-headers \
+    zlib \
+    libuv-dev \
+    zlib \
+    libc-dev \
+    vim \
+    bash
+
+ENTRYPOINT ["/emqx_cassandra_backend/build.sh"]
+
+CMD ["tail", "-f", "/dev/null"]
+
+
+FROM erlang:22.1-alpine as emqx-cass-run
+COPY --from=emqx-base /emqx-rel /emqx-rel
+#COPY --from=emqx-base /erlcass /emqx-rel/_build/default/lib/erlcass/
+COPY /emqx-rel/_build/emqx/rel/emqx/ /opt/emqx/
+COPY ./emqx_cassandra_backend /emqx_cassandra_backend
+
+COPY ./docker-entrypoint.sh start.sh /usr/bin/
+COPY --from=emqx-base /emqx-rel/_build/emqx/rel/emqx /opt/emqx
+
+RUN ln -s /opt/emqx/bin/* /usr/local/bin/
+RUN apk add --no-cache ncurses-libs openssl sudo
+
+WORKDIR /opt/emqx
+
+#RUN adduser -D -u 1000 emqx \
+#    && echo "emqx ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
+
+#RUN chgrp -Rf emqx /opt/emqx && chmod -Rf g+w /opt/emqx \
+#      && chown -Rf emqx /opt/emqx
+
+RUN chmod +x /usr/bin/docker-entrypoint.sh /usr/bin/start.sh
+
+RUN echo '{emqx_cassandra_backend, true}.' >> /opt/emqx/data/loaded_plugins
+
+#USER emqx
+
+RUN apk add ncurses-dev \
     openssl-dev \
     coreutils \
     bsd-compat-headers \
@@ -49,44 +123,6 @@ RUN apk add git \
     zlib \
     libc-dev \
     sed
-
-
-#COPY . /emqx_rel
-
-RUN mkdir -p /emqx-rel
-RUN git clone https://github.com/emqx/emqx-rel.git /emqx-rel
-ARG EMQX_DEPS_DEFAULT_VSN=develop
-ARG EMQX_NAME=emqx
-
-RUN cd /emqx-rel && make
-
-#BUILD ERLCASS STUFF
-RUN git clone --branch 'v4.0.0' https://github.com/silviucpp/erlcass.git /erlcass
-WORKDIR /erlcass
-
-RUN echo '{base_dir, "/emqx-rel/_build"}.' >> rebar.config
-
-COPY --from=cass-cpp /cpp-driver /erlcass/_build/deps/cpp-driver
-
-RUN rebar3 as emqx compile
-
-#COPY deploy/docker/docker-entrypoint.sh deploy/docker/start.sh /usr/bin/
-#COPY --from=builder //_build/emqx*/rel/emqx /opt/emqx
-
-#RUN ln -s /opt/emqx/bin/* /usr/local/bin/
-#RUN apk add --no-cache ncurses-libs openssl sudo
-
-#WORKDIR /opt/emqx
-
-#RUN adduser -D -u 1000 emqx \
-#    && echo "emqx ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
-
-#RUN chgrp -Rf emqx /opt/emqx && chmod -Rf g+w /opt/emqx \
-#      && chown -Rf emqx /opt/emqx
-
-#USER emqx
-
-#VOLUME ["/opt/emqx/log", "/opt/emqx/data", "/opt/emqx/lib", "/opt/emqx/etc"]
 
 # emqx will occupy these port:
 # - 1883 port for MQTT
@@ -101,27 +137,7 @@ RUN rebar3 as emqx compile
 # - 6369 for distributed node
 EXPOSE 1883 8080 8083 8084 8883 11883 18083 4369 5369 6369
 
-#ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
-#CMD ["/usr/bin/start.sh"]
+VOLUME ["/opt/emqx/log", "/opt/emqx/data", "/opt/emqx/lib", "/opt/emqx/etc"]
 
-FROM erlang:22.1-alpine as emqx-cass-dev
-VOLUME ["/emqx_cassandra_backend"]
-COPY --from=emqx-base /emqx-rel /emqx-rel
-COPY --from=emqx-base /erlcass /emqx-rel/_build/default/lib/erlcass/
-#COPY --from=emqx-base /erlcass/_build/deps/ /emqx-rel/_build/default/lib/deps/erlcass/_build/deps
-
-RUN apk add git \
-    curl \
-    gcc \
-    g++ \
-    make \
-    bsd-compat-headers \
-    zlib \
-    libuv-dev \
-    zlib \
-    libc-dev \
-    bash
-
-ENTRYPOINT ["/emqx_cassandra_backend/build.sh"]
-
-CMD ["tail", "-f", "/dev/null"]
+ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
+CMD ["/usr/bin/start.sh"]
