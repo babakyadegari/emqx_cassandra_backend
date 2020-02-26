@@ -70,36 +70,20 @@ CMD ["/emqx-rel/_build/emqx/rel/emqx/bin/emqx", "start"]
 CMD ["tail", "-f", "/dev/null"]
 
 
-FROM erlang:22.1-alpine as emqx-cass-dev
-VOLUME ["/emqx_cassandra_backend"]
-COPY --from=emqx-builder /emqx-rel /emqx-rel
-
-RUN apk add git \
-    curl \
-    gcc \
-    g++ \
-    make \
-    bsd-compat-headers \
-    zlib \
-    libuv-dev \
-    zlib \
-    libc-dev \
-    vim \
-    bash
 
 ENTRYPOINT ["/emqx_cassandra_backend/build.sh"]
 
 CMD ["tail", "-f", "/dev/null"]
 
 
-FROM erlang:22.1-alpine as emqx-cass-run
-COPY --from=emqx-base /emqx-rel /emqx-rel
-#COPY --from=emqx-base /erlcass /emqx-rel/_build/default/lib/erlcass/
-COPY /emqx-rel/_build/emqx/rel/emqx/ /opt/emqx/
-COPY ./emqx_cassandra_backend /emqx_cassandra_backend
-
+FROM erlang:22.1-alpine as emqx-cass-prod
+COPY --from=emqx-builder /emqx-rel/_build/emqx/rel/emqx /opt/emqx
 COPY ./docker-entrypoint.sh start.sh /usr/bin/
-COPY --from=emqx-base /emqx-rel/_build/emqx/rel/emqx /opt/emqx
+
+#COPY /emqx-rel/_build/emqx/rel/emqx/ /opt/emqx/
+#COPY ./emqx_cassandra_backend /emqx_cassandra_backend
+
+
 
 RUN ln -s /opt/emqx/bin/* /usr/local/bin/
 RUN apk add --no-cache ncurses-libs openssl sudo
@@ -118,15 +102,10 @@ RUN echo '{emqx_cassandra_backend, true}.' >> /opt/emqx/data/loaded_plugins
 
 #USER emqx
 
-RUN apk add ncurses-dev \
-    openssl-dev \
-    coreutils \
-    bsd-compat-headers \
+RUN apk add openssl \
     bash \
     libuv-dev \
-    zlib \
-    libc-dev \
-    sed
+    libstdc++
 
 # emqx will occupy these port:
 # - 1883 port for MQTT

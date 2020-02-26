@@ -48,15 +48,15 @@ load(Env) ->
 %%% Message publish
 %%%--------------------------------------------------------------------
 %
-% on_message_publish(Msg = #message{topic = <<"$SYS/", _/binary>>}) ->
-%     {ok, Msg};
+on_message_publish(Msg = #message{topic = <<"$SYS/", _/binary>>}, _Env) ->
+    {ok, Msg};
 on_message_publish(Msg, _Env) ->
     Res = cassandra_cli:publish(Msg),
     case Res of
         ok -> {ok, Msg};
         {error, Reason} ->
             % should pass along the message
-            ?LOG(error, "Error saving message: ~p ~n", [Reason]),
+            ?LOG(error, "Error saving message: ~p ~p ~n", [Reason,Msg]),
             {ok, Msg}
     end.
 
