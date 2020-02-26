@@ -3,6 +3,8 @@
 
 -include("emqx_cassandra_backend.hrl").
 
+-emqx_plugin(?MODULE).
+
 -behaviour(application).
 
 -import(emqx_auth_cassandra_cli, [parse_query/1]).

@@ -20,7 +20,7 @@
 +  {erlcass, {git, "https://github.com/silviucpp/erlcass", {branch, "v4.0.0"}}},
 +  {emqx_cassandra_backend, {git, "https://github.com/babakyadegari/emqx_cassandra_backend", {branch, "develop"}}}
   ]}.
- 
+
  %% Added to deps list for 'cloud' profile
  {cloud_deps,
 - [emqx_lwm2m,
@@ -36,13 +36,14 @@
 + [emqx_statsd,
 +  emqx_reloader
   ]}.
- 
+
  {edge_deps, []}.
-@@ -63,7 +50,6 @@
+@@ -63,7 +50,7 @@
      cowboy,
      pbkdf2,
      bcrypt,
 -    mysql,
++    erlcass,
      emqx,
      {mnesia, load},
      {ekka, load},
@@ -78,7 +79,7 @@
      {copy,"bin/nodetool","bin/nodetool"},
 @@ -118,26 +96,14 @@
  {edge_relx_apps, []}.
- 
+
  {cloud_relx_apps,
 - [{emqx_lwm2m, load},
 -  {emqx_auth_ldap, load},
@@ -95,7 +96,7 @@
 -  luerl,
    xmerl
   ]}.
- 
+
  {cloud_relx_overlay,
 - [{template,"{{output_dir}}/../../conf/plugins/emqx_lwm2m.conf", "etc/plugins/emqx_lwm2m.conf"},
 -  {template,"{{output_dir}}/../../conf/plugins/emqx_psk_file.conf", "etc/plugins/emqx_psk_file.conf"},
@@ -103,5 +104,5 @@
 -  {copy, "{{output_dir}}/../../lib/emqx_psk_file/etc/psk.txt", "etc/psk.txt"}
 + [
   ]}.
- 
+
  {edge_relx_overlay, []}.

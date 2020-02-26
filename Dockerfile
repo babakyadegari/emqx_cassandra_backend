@@ -20,7 +20,8 @@ RUN apk add git \
     cmake \
     sed \
     bash \
-    libc-dev
+    libc-dev \
+    vim
 
 
 RUN mkdir -p cpp-driver \
@@ -42,7 +43,9 @@ ARG EMQX_NAME=emqx
 #BUILD ERLCASS STUFF
 RUN git clone --branch 'v4.0.0' https://github.com/silviucpp/erlcass.git /emqx-rel/_build/emqx/lib/erlcass/
 
-RUN echo '{base_dir, "/emqx-rel/_build"}.' >> rebar.config
+#RUN echo '{base_dir, "/emqx-rel/_build"}.' >> rebar.config
+RUN rm /emqx-rel/_build/emqx/lib/erlcass/src/erlcass_app.erl
+RUN sed -i '/{mod,/d' /emqx-rel/_build/emqx/lib/erlcass/src/erlcass.app.src
 
 RUN mkdir -p /emqx-rel/_build/emqx/lib/erlcass/_build/deps/
 RUN cp -r /cpp-driver /emqx-rel/_build/emqx/lib/erlcass/_build/deps/
@@ -50,8 +53,9 @@ WORKDIR /emqx-rel
 
 COPY ./rebar.patch /emqx-rel
 COPY ./makefile.patch /emqx-rel
-RUN patch < ./rebar.patch \
-    && patch < ./makefile.patch
+RUN patch < ./rebar.patch
+RUN patch < ./makefile.patch
+
 
 RUN make
 
