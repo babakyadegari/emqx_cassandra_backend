@@ -1,22 +1,22 @@
-ARG BUILD_FROM=erlang:22.1-alpine
+ARG BUILD_FROM=erlang
 ARG RUN_FROM=alpine:3.10
 
 FROM ${BUILD_FROM} AS emqx-builder
 LABEL builder=true
 #ENV CPP_DIR /cpp-driver
 
-RUN apk add git \
+RUN apt-get update && apt-get install -y \
     curl \
     gcc \
     g++ \
     make \
     perl \
     ncurses-dev \
-    openssl-dev \
+    libssl-dev \
     coreutils \
-    bsd-compat-headers \
-    libuv-dev \
-    zlib \
+    #bsd-compat-headers \
+    libuv1-dev \
+    #zlib \
     cmake \
     sed \
     bash \
@@ -43,7 +43,6 @@ ARG EMQX_NAME=emqx
 #BUILD ERLCASS STUFF
 RUN git clone --branch 'v4.0.0' https://github.com/silviucpp/erlcass.git /emqx-rel/_build/emqx/lib/erlcass/
 
-#RUN echo '{base_dir, "/emqx-rel/_build"}.' >> rebar.config
 RUN rm /emqx-rel/_build/emqx/lib/erlcass/src/erlcass_app.erl
 RUN sed -i '/{mod,/d' /emqx-rel/_build/emqx/lib/erlcass/src/erlcass.app.src
 
@@ -56,6 +55,7 @@ COPY ./makefile.patch /emqx-rel
 RUN patch < ./rebar.patch
 RUN patch < ./makefile.patch
 
+RUN echo 'khar'
 
 RUN make
 
@@ -76,7 +76,7 @@ ENTRYPOINT ["/emqx_cassandra_backend/build.sh"]
 CMD ["tail", "-f", "/dev/null"]
 
 
-FROM erlang:22.1-alpine as emqx-cass-prod
+FROM erlang as emqx-cass-prod
 COPY --from=emqx-builder /emqx-rel/_build/emqx/rel/emqx /opt/emqx
 COPY ./docker-entrypoint.sh start.sh /usr/bin/
 
@@ -86,7 +86,7 @@ COPY ./docker-entrypoint.sh start.sh /usr/bin/
 
 
 RUN ln -s /opt/emqx/bin/* /usr/local/bin/
-RUN apk add --no-cache ncurses-libs openssl sudo
+#RUN apk add --no-cache ncurses-libs openssl sudo
 
 WORKDIR /opt/emqx
 
@@ -102,10 +102,9 @@ RUN echo '{emqx_cassandra_backend, true}.' >> /opt/emqx/data/loaded_plugins
 
 #USER emqx
 
-RUN apk add openssl \
+RUN apt-get update && apt-get install -y openssl \
     bash \
-    libuv-dev \
-    libstdc++
+    libuv1
 
 # emqx will occupy these port:
 # - 1883 port for MQTT

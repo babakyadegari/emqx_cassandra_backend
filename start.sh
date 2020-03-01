@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
 set -e
 
 emqx_exit(){
@@ -44,15 +45,15 @@ echo "['$(date -u +"%Y-%m-%dT%H:%M:%SZ")']:emqx start"
 NEW_LOG_NUM=2
 IDLE_TIME=0
 while [[ $IDLE_TIME -lt 5 ]]
-do  
+do
     IDLE_TIME=$((IDLE_TIME+1))
     if [[ ! -z "$(/opt/emqx/bin/emqx_ctl status |grep 'is running'|awk '{print $1}')" ]]; then
         IDLE_TIME=0
         # Print the latest emqx.log
         if [[ -f /opt/emqx/log/emqx.log.${NEW_LOG_NUM} ]];then
             tail -f /opt/emqx/log/emqx.log.${NEW_LOG_NUM} &
-            [[ ! -z $(ps -ef |grep "tail -f /opt/emqx/log/emqx.log" | grep -vE "grep|emqx.log.${NEW_LOG_NUM}" | awk '{print $1}') ]] && kill $(ps -ef |grep "tail -f /opt/emqx/log/emqx.log" | grep -vE "grep|emqx.log.${NEW_LOG_NUM}" | awk '{print $1}') 
-            NEW_LOG_NUM=$((NEW_LOG_NUM+1)) 
+            [[ ! -z $(ps -ef |grep "tail -f /opt/emqx/log/emqx.log" | grep -vE "grep|emqx.log.${NEW_LOG_NUM}" | awk '{print $1}') ]] && kill $(ps -ef |grep "tail -f /opt/emqx/log/emqx.log" | grep -vE "grep|emqx.log.${NEW_LOG_NUM}" | awk '{print $1}')
+            NEW_LOG_NUM=$((NEW_LOG_NUM+1))
         fi
     else
         echo "['$(date -u +"%Y-%m-%dT%H:%M:%SZ")']:emqx not running, waiting for recovery in $((25-IDLE_TIME*5)) seconds"

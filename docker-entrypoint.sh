@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
 ## EMQ docker image start script
 # Huang Rui <vowstar@gmail.com>
 # EMQ X Team <support@emqx.io>
@@ -121,14 +122,14 @@ do
         # Config in emq.conf
         if [[ ! -z "$(cat $CONFIG |grep -E "^(^|^#*|^#*\s*)$VAR_NAME")" ]]; then
             echo "$VAR_NAME=$(eval echo \$$VAR_FULL_NAME)"
-            echo "$(sed -r "s/(^#*\s*)($VAR_NAME)\s*=\s*(.*)/\2 = $(eval echo \$$VAR_FULL_NAME|sed -e 's/\//\\\//g')/g" $CONFIG)" > $CONFIG   
+            echo "$(sed -r "s/(^#*\s*)($VAR_NAME)\s*=\s*(.*)/\2 = $(eval echo \$$VAR_FULL_NAME|sed -e 's/\//\\\//g')/g" $CONFIG)" > $CONFIG
         fi
         # Config in plugins/*
         for CONFIG_PLUGINS_FILE in $(ls $CONFIG_PLUGINS); do
             if [[ ! -z "$(cat $CONFIG_PLUGINS/$CONFIG_PLUGINS_FILE |grep -E "^(^|^#*|^#*\s*)$VAR_NAME")" ]]; then
                 echo "$VAR_NAME=$(eval echo \$$VAR_FULL_NAME)"
                 echo "$(sed -r "s/(^#*\s*)($VAR_NAME)\s*=\s*(.*)/\2 = $(eval echo \$$VAR_FULL_NAME|sed -e 's/\//\\\//g')/g" $CONFIG_PLUGINS/$CONFIG_PLUGINS_FILE)" > $CONFIG_PLUGINS/$CONFIG_PLUGINS_FILE
-            fi 
+            fi
         done
     fi
     # Config template such like {{ platform_etc_dir }}
