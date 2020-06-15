@@ -47,7 +47,7 @@ check(ClientInfo = #{password := Password, clientid := ClientId}, AuthResult,
                               anonymous => false,
                               auth_result => success}};
       {error, not_found} ->
-          emqx_metrics:inc('auth.cassandra.ignore'), ok;
+          emqx_metrics:inc('auth.cassandra.failed'), ok;
       {error, ResultCode} ->
           ?LOG(debug, "[CASSANDRA] auth from cassandra failed: ~p", [ResultCode]),
           emqx_metrics:inc('auth.cassandra.failure'),
@@ -65,9 +65,7 @@ is_superuser({SuperSql, Params}, ClientInfo) ->
     case emqx_auth_cassandra_cli:query(cassandra_auth_super_query, Params, ClientInfo) of
         {ok, [{<<"is_superuser">>, tinyint}], [[1]]} ->
             true;
-        {ok, [{<<"is_superuser">>, tinyint}], [[0]]} ->
-            false;
-        {ok, [{<<"is_superuser">>, tinyint}], [[]]} ->
+        {ok, [{<<"is_superuser">>, tinyint}], [[_]]} ->
             false;
         {error, _Error} ->
             ?LOG(error, "[CASSANDRA] super_user query '~p' failed: ~p", [SuperSql, _Error]),

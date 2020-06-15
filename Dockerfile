@@ -46,6 +46,11 @@ RUN git clone --branch 'v4.0.0' https://github.com/silviucpp/erlcass.git /emqx-r
 RUN rm /emqx-rel/_build/emqx/lib/erlcass/src/erlcass_app.erl
 RUN sed -i '/{mod,/d' /emqx-rel/_build/emqx/lib/erlcass/src/erlcass.app.src
 
+COPY ./erlcass.patch /emqx-rel
+WORKDIR /emqx-rel/_build/emqx/lib/erlcass/c_src
+#WORKDIR /emqx-rel
+RUN patch -p6 < /emqx-rel/erlcass.patch
+
 RUN mkdir -p /emqx-rel/_build/emqx/lib/erlcass/_build/deps/
 RUN cp -r /cpp-driver /emqx-rel/_build/emqx/lib/erlcass/_build/deps/
 WORKDIR /emqx-rel
@@ -55,7 +60,7 @@ COPY ./makefile.patch /emqx-rel
 RUN patch < ./rebar.patch
 RUN patch < ./makefile.patch
 
-RUN echo 'khar'
+RUN echo 'sag'
 
 RUN make
 
