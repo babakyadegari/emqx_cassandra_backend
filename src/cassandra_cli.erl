@@ -10,13 +10,15 @@
 					week_of_year/1,
 					connect/1,
 					action_types/1,
-					log_actions/3,
-					log_actions/4]).
+					log_events/3,
+					log_events/4]).
 
 
 -define(INSERTQSTR, <<"INSERT INTO smartpot.thing_msgs(device_id, week, ts, msg_id, payload, topic) values(?, ?, ?, ?, ?, ?)">>).
 -define(ACTIONQSTR, <<"INSERT INTO smartpot.thing_actions(device_id, week, action, ts) values(?, ?, ?, ?)">>).
 -define(ACTIONREASONQSTR, <<"INSERT INTO smartpot.thing_actions(device_id, week, action, ts, reason) values(?, ?, ?, ?, ?)">>).
+-define(SELECTQUEUED, <<"SELECT ts,topic,msg FROM smartpot.msg_to_things_queue WHERE device_id = ? AND queued = 1">>).
+
 
 connect(Opts) ->
 	Erlcass = proplists:get_value(cluster_options, Opts, []),
@@ -40,6 +42,7 @@ register_queries() ->
 		ok = erlcass:add_prepare_statement(insert_msg, {?INSERTQSTR, ?CASS_CONSISTENCY_ANY}),
 		ok = erlcass:add_prepare_statement(insert_action, {?ACTIONQSTR, ?CASS_CONSISTENCY_ANY}),
 		ok = erlcass:add_prepare_statement(insert_action_reason, {?ACTIONREASONQSTR, ?CASS_CONSISTENCY_ANY}).
+	  ok = erlcass:add_prepare_statement(retrieve_queued_msgs, {?SELECTQUEUED, ?CASS_CONSISTENCY_ANY}).
 
 register_a_query(QueryName, QueryStr) ->
 	  ok = erlcass:add_prepare_statement(QueryName, QueryStr).
@@ -61,7 +64,7 @@ publish(Msg) ->
 	      erlang:display(Stacktrace)
 		end.
 
-log_actions(ClientId, Action, Ts) ->
+log_events(ClientId, Action, Ts) ->
 	try
 		Res = query(insert_action,
 			[ClientId, week_of_year(calendar:iso_week_number()), Action,
@@ -76,9 +79,9 @@ log_actions(ClientId, Action, Ts) ->
 			erlang:display(Stacktrace)
 	end.
 
-log_actions(ClientId, Action, R, Ts) when is_atom(R) ->
-	log_actions(ClientId, Action, atom_to_list(R), Ts);
-log_actions(ClientId, Action, R, Ts) ->
+log_events(ClientId, Action, R, Ts) when is_atom(R) ->
+	log_events(ClientId, Action, atom_to_list(R), Ts);
+log_events(ClientId, Action, R, Ts) ->
 	try
 		Res = query(insert_action_reason,
 			[ClientId, week_of_year(calendar:iso_week_number()), Action,

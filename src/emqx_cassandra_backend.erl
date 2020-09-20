@@ -64,9 +64,8 @@ on_message_publish(Msg, _Env) ->
 %--------------------------------------------------------------------
 % Client connected
 %--------------------------------------------------------------------
-
 on_client_connected(ClientInfo = #{clientid := ClientId}, ConnInfo, _Env) ->
-   case cassandra_cli:log_actions(ClientId, cassandra_cli:action_types(client_connect), maps:get(connected_at, ConnInfo)*1000) of
+   case cassandra_cli:log_event(ClientId, cassandra_cli:action_types(client_connect), maps:get(connected_at, ConnInfo)*1000) of
      ok -> ok;
      {error, Reason} ->
          ?LOG(error, "Error logging action: ~p ~n", [Reason]),
@@ -78,7 +77,7 @@ on_client_connected(ClientInfo = #{clientid := ClientId}, ConnInfo, _Env) ->
 
 on_client_disconnected(ClientInfo = #{clientid := ClientId}, Reason, ConnInfo, _Env) ->
   ct:print("times ~p ~p", [erlang:system_time(millisecond), maps:get(disconnected_at, ConnInfo)]),
-   case cassandra_cli:log_actions(ClientId, cassandra_cli:action_types(client_disconnect), Reason, maps:get(disconnected_at, ConnInfo)*1000) of
+   case cassandra_cli:log_event(ClientId, cassandra_cli:action_types(client_disconnect), Reason, maps:get(disconnected_at, ConnInfo)*1000) of
      ok -> ok;
      {error, Reas} ->
          ?LOG(error, "Error logging action: ~p ~n", [Reas]),
@@ -89,19 +88,36 @@ on_client_disconnected(ClientInfo = #{clientid := ClientId}, Reason, ConnInfo, _
 %%--------------------------------------------------------------------
 %% Client subscribe
 %%--------------------------------------------------------------------
-
 on_client_subscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
    lists:foreach(fun({Topic, Opts}) ->
-     case cassandra_cli:log_actions(ClientId, cassandra_cli:action_types(client_subscribe),
+     case cassandra_cli:log_event(ClientId, cassandra_cli:action_types(client_subscribe),
        Topic, erlang:system_time(millisecond)) of
        ok -> ok;
        {error, Reas} ->
            ct:print("Error ~p ", [Reas]),
            ?LOG(error, "Error logging action: ~p ~n", [Reas]),
            ok
+     end,
+     Cols = [{<<"ts">>, timestamp},{<<"topic">>, text}, {<<"msg">>, text}],
+     case Topic of
+       <<"config">> ->
+         case cassandra_cli:query(retrieve_queued_msgs, [ClientId]) of
+           {ok, Cols, [[null]]} -> ok,
+           {ok, Cols, [[]]}     -> ok,
+           {ok, Cols, [[Rows]]} -> PublishQueuedMsgs(Rows)
+         end
      end
    end, TopicFilters),
    {ok, TopicFilters}.
+
+PublishQueuedMsgs(Rows) ->
+  {R, Rest} = Rows,
+  {Ts, Topic, Payload} = R,
+  emqx:publish(emqx_message:make(Topic, Payload)),
+  PublishQueuedMsgs(Rest),
+
+PublishQueuedMsgs([]) ->
+  ok.
 
 %%--------------------------------------------------------------------
 %% Client unsubscribe
@@ -109,7 +125,7 @@ on_client_subscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
 
 on_client_unsubscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
    lists:foreach(fun({Topic, Opts}) ->
-     case cassandra_cli:log_actions(ClientId, cassandra_cli:action_types(client_unsubscribe),
+     case cassandra_cli:log_event(ClientId, cassandra_cli:action_types(client_unsubscribe),
        Topic, erlang:system_time(millisecond)) of
        ok -> ok;
        {error, Reas} ->
