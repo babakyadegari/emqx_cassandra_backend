@@ -41,7 +41,7 @@ query(Query, QOpts) ->
 register_queries() ->
 		ok = erlcass:add_prepare_statement(insert_msg, {?INSERTQSTR, ?CASS_CONSISTENCY_ANY}),
 		ok = erlcass:add_prepare_statement(insert_action, {?ACTIONQSTR, ?CASS_CONSISTENCY_ANY}),
-		ok = erlcass:add_prepare_statement(insert_action_reason, {?ACTIONREASONQSTR, ?CASS_CONSISTENCY_ANY}).
+		ok = erlcass:add_prepare_statement(insert_action_reason, {?ACTIONREASONQSTR, ?CASS_CONSISTENCY_ANY}),
 	  ok = erlcass:add_prepare_statement(retrieve_queued_msgs, {?SELECTQUEUED, ?CASS_CONSISTENCY_ANY}).
 
 register_a_query(QueryName, QueryStr) ->

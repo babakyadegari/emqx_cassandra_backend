@@ -102,8 +102,8 @@ on_client_subscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
      case Topic of
        <<"config">> ->
          case cassandra_cli:query(retrieve_queued_msgs, [ClientId]) of
-           {ok, Cols, [[null]]} -> ok,
-           {ok, Cols, [[]]}     -> ok,
+           {ok, Cols, [[null]]} -> ok;
+           {ok, Cols, [[]]}     -> ok;
            {ok, Cols, [[Rows]]} -> PublishQueuedMsgs(Rows)
          end
      end
