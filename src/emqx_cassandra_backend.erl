@@ -88,6 +88,15 @@ on_client_disconnected(ClientInfo = #{clientid := ClientId}, Reason, ConnInfo, _
 %%--------------------------------------------------------------------
 %% Client subscribe
 %%--------------------------------------------------------------------
+
+publishQueuedMsgs([]) ->
+  ok;
+publishQueuedMsgs(Rows) ->
+  {R, Rest} = Rows,
+  {Ts, Topic, Payload} = R,
+  emqx:publish(emqx_message:make(Topic, Payload)),
+  publishQueuedMsgs(Rest).
+
 on_client_subscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
    lists:foreach(fun({Topic, Opts}) ->
      case cassandra_cli:log_event(ClientId, cassandra_cli:action_types(client_subscribe),
@@ -104,20 +113,11 @@ on_client_subscribe(#{clientid := ClientId}, _Properties, TopicFilters, _Env) ->
          case cassandra_cli:query(retrieve_queued_msgs, [ClientId]) of
            {ok, Cols, [[null]]} -> ok;
            {ok, Cols, [[]]}     -> ok;
-           {ok, Cols, [[Rows]]} -> PublishQueuedMsgs(Rows)
+           {ok, Cols, [[Rows]]} -> publishQueuedMsgs(Rows)
          end
      end
    end, TopicFilters),
    {ok, TopicFilters}.
-
-PublishQueuedMsgs(Rows) ->
-  {R, Rest} = Rows,
-  {Ts, Topic, Payload} = R,
-  emqx:publish(emqx_message:make(Topic, Payload)),
-  PublishQueuedMsgs(Rest),
-
-PublishQueuedMsgs([]) ->
-  ok.
 
 %%--------------------------------------------------------------------
 %% Client unsubscribe
