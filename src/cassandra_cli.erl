@@ -16,16 +16,17 @@
 
 -define(INSERTQSTR, <<"INSERT INTO smartpot.thing_msgs(device_id, week, ts, msg_id, payload, topic) values(?, ?, ?, ?, ?, ?)">>).
 -define(ACTIONQSTR, <<"INSERT INTO smartpot.thing_actions(device_id, week, action, ts) values(?, ?, ?, ?)">>).
--define(ACTIONREASONQSTR, <<"INSERT INTO smartpot.thing_actions(device_id, week, action, ts, reason) values(?, ?, ?, ?, ?)">>).
--define(SELECTQUEUED, <<"SELECT ts,topic,msg FROM smartpot.msg_to_things_queue WHERE device_id = ? AND queued = 1">>).
+-define(ACTIONREASONQSTR, <<"INSERT INTO smartpot.thing_actions(device_id, week, action, ts, reason) values(?, ?, ?, ?, ?) allow filtering">>).
+-define(SELECTQUEUED, <<"SELECT ts,topic,msg FROM smartpot.msg_to_things_queue WHERE device_id=? AND queued=1 allow filtering">>).
 
 
 connect(Opts) ->
+	io:format("starting erlcass"),
 	Erlcass = proplists:get_value(cluster_options, Opts, []),
 	application:set_env([{erlcass, Opts}]),
 	ok = erlcass_cluster:create(),
 	erlcass_cluster:set_log_level(5),
-
+	io:format("~p", [Erlcass]),
 	erlcass_cluster:set_options(Erlcass),
 	ok = erlcass_stm_cache:create(),
 	erlcass_sup:start_link().

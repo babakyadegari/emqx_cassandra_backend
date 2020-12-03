@@ -1,0 +1,71 @@
+ARG BUILD_FROM=erlang:22.1-alpine
+ARG RUN_FROM=erlang:22.1-alpine
+
+FROM ${BUILD_FROM} AS emqx-builder
+LABEL builder=true
+#ENV CPP_DIR /cpp-driver
+
+RUN apk update && apk add \
+    curl \
+    gcc \
+    g++ \
+    make \
+    perl \
+    ncurses-dev \
+    libressl-dev \
+    coreutils \
+    bsd-compat-headers \
+    libuv-dev \
+    #zlib \
+    cmake \
+    sed \
+    bash \
+    libc-dev \
+    vim \
+    git
+
+RUN mkdir -p cpp-driver \
+  && git clone https://github.com/datastax/cpp-driver.git cpp-driver \
+  && cd cpp-driver \
+  && git checkout 3a5d3a50299fafc9c02c2dd42447e617593a19e9
+
+WORKDIR cpp-driver/build
+
+RUN cmake .. -DCASS_BUILD_STATIC=ON -DCASS_BUILD_SHARED=OFF -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC
+RUN make -j 8
+
+RUN mkdir -p /emqx-rel
+RUN git clone https://github.com/emqx/emqx-rel.git /emqx-rel
+#ARG EMQX_DEPS_DEFAULT_VSN=develop
+#ARG EMQX_NAME=emqx
+
+
+#BUILD ERLCASS STUFF
+RUN git clone --branch 'master' https://github.com/silviucpp/erlcass.git /emqx-rel/_build/emqx/lib/erlcass/
+
+RUN rm /emqx-rel/_build/emqx/lib/erlcass/src/erlcass_app.erl
+RUN sed -i '/{mod,/d' /emqx-rel/_build/emqx/lib/erlcass/src/erlcass.app.src
+
+COPY ./erlcass.patch /emqx-rel
+WORKDIR /emqx-rel/_build/emqx/lib/erlcass/c_src
+#WORKDIR /emqx-rel
+#RUN patch -p6 < /emqx-rel/erlcass.patch
+
+RUN mkdir -p /emqx-rel/_build/emqx/lib/erlcass/_build/deps/
+RUN cp -r /cpp-driver /emqx-rel/_build/emqx/lib/erlcass/_build/deps/
+WORKDIR /emqx-rel
+
+COPY ./rebar.config.patch /emqx-rel
+COPY ./Makefile.patch /emqx-rel
+RUN patch rebar.config rebar.config.patch
+RUN patch Makefile Makefile.patch
+
+RUN make
+
+run echo 'kharr'
+
+COPY ./docker-entrypoint-dev.sh /docker-entrypoint-dev.sh
+
+RUN chmod +x /docker-entrypoint-dev.sh
+
+ENTRYPOINT ["/emqx_cassandra_backend/build.sh"]

@@ -1,0 +1,159 @@
+diff -Naur ./erlcass/c_src/cass_binding.cc emqx-rel_back/_build/emqx/lib/erlcass/c_src/cass_binding.cc
+--- ./erlcass/c_src/cass_binding.cc	2020-03-02 23:19:35.679414406 -0800
++++ emqx-rel_back/_build/emqx/lib/erlcass/c_src/cass_binding.cc	2020-02-29 23:37:11.202666250 -0800
+@@ -174,7 +174,7 @@
+         case CASS_VALUE_TYPE_COUNTER:
+         case CASS_VALUE_TYPE_BIGINT:
+         {
+-            long long_value = 0;
++            long long long_value = 0;
+ 
+             if(!enif_get_int64(env, value, &long_value ))
+                 return make_badarg(env);
+diff -Naur ./erlcass/c_src/env.mk emqx-rel_back/_build/emqx/lib/erlcass/c_src/env.mk
+--- ./erlcass/c_src/env.mk	1969-12-31 16:00:00.000000000 -0800
++++ emqx-rel_back/_build/emqx/lib/erlcass/c_src/env.mk	2020-03-01 22:06:30.107801760 -0800
+@@ -0,0 +1,3 @@
++ERTS_INCLUDE_DIR ?= /usr/lib/erlang/erts-10.2.4/include/
++ERL_INTERFACE_INCLUDE_DIR ?= /usr/lib/erlang/lib/erl_interface-3.10.4/include
++ERL_INTERFACE_LIB_DIR ?= /usr/lib/erlang/lib/erl_interface-3.10.4/lib
+diff -Naur ./erlcass/c_src/.gitattributes emqx-rel_back/_build/emqx/lib/erlcass/c_src/.gitattributes
+--- ./erlcass/c_src/.gitattributes	2020-03-02 23:19:35.679414406 -0800
++++ emqx-rel_back/_build/emqx/lib/erlcass/c_src/.gitattributes	1969-12-31 16:00:00.000000000 -0800
+@@ -1,2 +0,0 @@
+-*.cc linguist-language=Erlang
+-
+diff -Naur ./erlcass/c_src/.gitignore emqx-rel_back/_build/emqx/lib/erlcass/c_src/.gitignore
+--- ./erlcass/c_src/.gitignore	2020-03-02 23:19:35.679414406 -0800
++++ emqx-rel_back/_build/emqx/lib/erlcass/c_src/.gitignore	1969-12-31 16:00:00.000000000 -0800
+@@ -1,3 +0,0 @@
+-*.o
+-*.d
+-/env.mk
+diff -Naur ./erlcass/c_src/Makefile emqx-rel_back/_build/emqx/lib/erlcass/c_src/Makefile
+--- ./erlcass/c_src/Makefile	2020-03-02 23:19:35.679414406 -0800
++++ emqx-rel_back/_build/emqx/lib/erlcass/c_src/Makefile	2020-03-01 20:03:16.263968880 -0800
+@@ -57,7 +57,7 @@
+ 	CXXFLAGS+= -Wno-class-memaccess
+ endif
+ 
+-CXXFLAGS+=  -g -std=c++11 -Wextra -Werror -fno-rtti \
++CXXFLAGS+=  -g -std=c++11 -Wno-narrowing -Wextra -fno-rtti \
+ 			-Wno-unused-local-typedefs -Wno-unused-parameter -Wno-missing-field-initializers \
+             -I $(BASEDIR)/_build/deps/cpp-driver/include \
+             -I $(BASEDIR)/_build/deps/cpp-driver/src \
+@@ -68,4 +68,6 @@
+             -luv \
+             -lstdc++ \
+             -lssl \
+-            -lcrypto
++            -lcrypto \
++	    -latomic
++
+diff -Naur ./erlcass/c_src/nif_cass_cluster.cc emqx-rel_back/_build/emqx/lib/erlcass/c_src/nif_cass_cluster.cc
+--- ./erlcass/c_src/nif_cass_cluster.cc	2020-03-02 23:19:35.689414335 -0800
++++ emqx-rel_back/_build/emqx/lib/erlcass/c_src/nif_cass_cluster.cc	2020-02-29 23:37:11.212666165 -0800
+@@ -43,7 +43,7 @@
+ 
+ #define UINT64_SETTING(Key, Func) \
+     if(enif_is_identical(term_key, Key)) { \
+-        unsigned long value; \
++        unsigned long long value; \
+         if(!enif_get_uint64(env, term_value, &value)) \
+             return make_bad_options(env, term_option); \
+         return cass_error_to_nif_term(env, Func(data->cluster, static_cast<cass_uint64_t>(value))); \
+@@ -97,8 +97,8 @@
+     if(!enif_get_tuple(env, term_value, &arity, &items) || arity != 2)
+         return make_badarg(env);
+ 
+-    unsigned long base_delay_ms;
+-    unsigned long max_delay_ms;
++    unsigned long long base_delay_ms;
++    unsigned long long max_delay_ms;
+ 
+     if(!enif_get_uint64(env, items[0], &base_delay_ms) || !enif_get_uint64(env, items[1], &max_delay_ms))
+         return make_bad_options(env, term_option);
+@@ -122,7 +122,7 @@
+         if(!enif_get_tuple(env, term_value, &arity, &items) || arity != 2)
+             return make_badarg(env);
+ 
+-        unsigned long constant_delay_ms;
++        unsigned long long constant_delay_ms;
+         int max_speculative_executions;
+ 
+         if(!enif_get_uint64(env, items[0], &constant_delay_ms) || !enif_get_int(env, items[1], &max_speculative_executions))
+@@ -412,10 +412,10 @@
+         return make_bad_options(env, term_option);
+ 
+     double exclusion_threshold;
+-    unsigned long scale_ms;
+-    unsigned long retry_period_ms;
+-    unsigned long update_rate_ms;
+-    unsigned long min_measured;
++    unsigned long long scale_ms;
++    unsigned long long retry_period_ms;
++    unsigned long long update_rate_ms;
++    unsigned long long min_measured;
+ 
+     if(!enif_get_double(env, items[0], &exclusion_threshold))
+         return make_bad_options(env, term_option);
+diff -Naur ./erlcass/c_src/nif_cass_uuid.cc emqx-rel_back/_build/emqx/lib/erlcass/c_src/nif_cass_uuid.cc
+--- ./erlcass/c_src/nif_cass_uuid.cc	2020-03-02 23:19:35.689414335 -0800
++++ emqx-rel_back/_build/emqx/lib/erlcass/c_src/nif_cass_uuid.cc	2020-02-29 23:37:11.212666165 -0800
+@@ -44,7 +44,7 @@
+     if(!data->uuid_gen)
+         return make_error(env, erlcass::kInvalidUuidGeneratorMsg);
+ 
+-    unsigned long timestamp;
++    unsigned long long timestamp;
+ 
+     if(!enif_get_uint64(env, argv[0], &timestamp))
+         return make_badarg(env);
+@@ -56,7 +56,7 @@
+ 
+ ERL_NIF_TERM nif_cass_uuid_min_from_time(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+ {
+-    unsigned long timestamp;
++    unsigned long long timestamp;
+ 
+     if(!enif_get_uint64(env, argv[0], &timestamp))
+         return make_badarg(env);
+@@ -68,7 +68,7 @@
+ 
+ ERL_NIF_TERM nif_cass_uuid_max_from_time(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+ {
+-    unsigned long timestamp;
++    unsigned long long timestamp;
+ 
+     if(!enif_get_uint64(env, argv[0], &timestamp))
+         return make_badarg(env);
+diff -Naur ./erlcass/c_src/nif_date_time.cc emqx-rel_back/_build/emqx/lib/erlcass/c_src/nif_date_time.cc
+--- ./erlcass/c_src/nif_date_time.cc	2020-03-02 23:19:35.689414335 -0800
++++ emqx-rel_back/_build/emqx/lib/erlcass/c_src/nif_date_time.cc	2020-02-29 23:37:11.212666165 -0800
+@@ -4,7 +4,7 @@
+ 
+ ERL_NIF_TERM nif_cass_date_from_epoch(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+ {
+-    long epoch_secs;
++    long long epoch_secs;
+ 
+     if(!enif_get_int64(env, argv[0], &epoch_secs))
+         return make_badarg(env);
+@@ -14,7 +14,7 @@
+ 
+ ERL_NIF_TERM nif_cass_time_from_epoch(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+ {
+-    long epoch_secs;
++    long long epoch_secs;
+ 
+     if(!enif_get_int64(env, argv[0], &epoch_secs))
+         return make_badarg(env);
+@@ -25,7 +25,7 @@
+ ERL_NIF_TERM nif_cass_date_time_to_epoch(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+ {
+     unsigned int date;
+-    long time;
++    long long time;
+ 
+     if(!enif_get_uint(env, argv[0], &date) || !enif_get_int64(env, argv[1], &time))
+         return make_badarg(env);

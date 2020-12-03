@@ -6,7 +6,7 @@
    emqx_recon,
 -  emqx_rule_engine
 +  emqx_rule_engine,
-+  {erlcass, {git, "https://github.com/silviucpp/erlcass", {branch, "v4.0.0"}}},
++  {erlcass, {git, "https://github.com/silviucpp/erlcass", {branch, "master"}}},
 +  {emqx_cassandra_backend, {git, "https://github.com/babakyadegari/emqx_cassandra_backend", {branch, "develop"}}}
   ]}.
 
